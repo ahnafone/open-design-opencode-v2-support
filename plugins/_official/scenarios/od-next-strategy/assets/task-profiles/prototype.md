@@ -1,4 +1,4 @@
-# OD Next Prototype Task Profile v2.3.1
+# OD Next Prototype Task Profile v2.3.5
 
 > Rollout: active
 
@@ -250,6 +250,16 @@ Treat functional inline SVGs as one component contract before writing markup:
   not by whether it carries a `viewBox`. A logo stays a content SVG even
   inside a button or a nav bar; a deliberately large UI glyph stays functional
   and takes its size from `--od-icon-size`.
+
+### Keep dynamic structure and data separate
+
+For dynamic UI, prefer separating DOM structure from data. Use `textContent`
+for plain text and DOM properties or `setAttribute` for attributes. When
+generating HTML, prefer template literals with `${...}` for complex fragments
+instead of long concatenation chains with nested quote delimiters; escape data
+for its insertion context. Reuse a render function for repeated fragments only
+when their structure and meaning match. Keep simple code simple; do not add
+abstractions solely to follow this guidance.
 
 ### Design usable forms and feedback
 
