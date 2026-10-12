@@ -29,6 +29,8 @@ export type StockSearchAttempt = {
   stage: 'search' | 'download';
   status: 'ok' | 'not_found' | 'error';
   timestamp: string;
+  /** Monotonic elapsed time; downloads include decoding and writing bytes. */
+  durationMs: number;
   httpStatus: number | null;
   rateLimited: boolean;
   rateLimit?: StockRateLimit;
@@ -75,7 +77,7 @@ export type StockSearchOptions = {
   fetch?: typeof fetch;
   now?: () => number;
   /** Allowlisted response metadata and scrubbed errors for execution logs. */
-  onAttempt?: (event: StockSearchAttempt & { slotId: string }) => void;
+  onAttempt?: (event: StockSearchAttempt & { slotId: string; slotIndex: number }) => void;
 };
 
 export type StockSearchReport = {
@@ -244,13 +246,13 @@ export function imageSize(buf: Buffer): { width: number; height: number } | null
   return null;
 }
 
-async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length);
   let next = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (next < items.length) {
       const index = next++;
-      out[index] = await fn(items[index]!);
+      out[index] = await fn(items[index]!, index);
     }
   });
   await Promise.all(workers);
@@ -285,7 +287,7 @@ export async function stockSearch(options: StockSearchOptions): Promise<StockSea
   const outDir = options.outDir ?? 'assets/stock';
   await mkdir(path.resolve(cwd, outDir), { recursive: true });
 
-  const results = await mapLimit(options.slots, options.concurrency ?? 6, async (slot): Promise<StockSlotResult> => {
+  const results = await mapLimit(options.slots, options.concurrency ?? 6, async (slot, slotIndex): Promise<StockSlotResult> => {
     const attempts: StockSearchAttempt[] = [];
     const base = { id: slot.id, query: slot.query, attempts };
     const width = Math.min(Math.max(Math.round(slot.width ?? 1200), 200), 2400);
@@ -295,16 +297,18 @@ export async function stockSearch(options: StockSearchOptions): Promise<StockSea
       if (remaining <= 0) return { ...base, status: 'budget_exceeded' };
       const budget = Math.min(timeoutMs, remaining);
       let stage: StockSearchAttempt['stage'] = 'search';
+      let stageStartedAt = performance.now();
       let response: ResponseInfo = { httpStatus: null };
       const recordAttempt = (status: StockSearchAttempt['status'], error?: unknown) => {
         const attempt: StockSearchAttempt = {
           provider, stage, status, timestamp: new Date().toISOString(), ...response,
+          durationMs: Math.max(0, performance.now() - stageStartedAt),
           rateLimited: response.httpStatus === 429,
           ...(error !== undefined ? { error: safeError(error) } : {}),
         };
         attempts.push(attempt);
         try {
-          options.onAttempt?.({ slotId: slot.id, ...attempt });
+          options.onAttempt?.({ slotId: slot.id, slotIndex, ...attempt });
         } catch {
           // Optional execution-log sinks must not change image acquisition.
         }
@@ -316,6 +320,7 @@ export async function stockSearch(options: StockSearchOptions): Promise<StockSea
         recordAttempt(candidate ? 'ok' : 'not_found');
         if (!candidate) continue;
         stage = 'download';
+        stageStartedAt = performance.now();
         response = { httpStatus: null };
         const res = await fetchImpl(candidate.downloadUrl, { signal: AbortSignal.timeout(Math.min(timeoutMs, Math.max(deadline - now(), 1))) });
         response = responseInfo(res);

@@ -31,6 +31,7 @@ import {
 } from './mcp-agent-install.js';
 import { resolveMcpWorkspaceContext } from './mcp-workspace-context.js';
 import { StockSearchConfigError, StockSearchInputError, stockSearch } from './media/stock-search.js';
+import { createStockRecorder } from './media/stock-telemetry.js';
 
 const argv = process.argv.slice(2);
 
@@ -1796,6 +1797,7 @@ async function runMediaStockSearch(rawArgs) {
     process.exit(2);
   }
   const numberFlag = (name) => (flags[name] === undefined ? undefined : Number(flags[name]));
+  const recorder = await createStockRecorder({ slotCount: slots.length });
   try {
     const report = await stockSearch({
       slots,
@@ -1803,9 +1805,13 @@ async function runMediaStockSearch(rawArgs) {
       budgetMs: numberFlag('budget-ms'),
       requestTimeoutMs: numberFlag('timeout-ms'),
       concurrency: numberFlag('concurrency'),
-      onAttempt: (event) => console.error(`[stock-search] ${JSON.stringify(event)}`),
+      onAttempt: (event) => {
+        console.error(`[stock-search] ${JSON.stringify(event)}`);
+        recorder.record(event);
+      },
     });
-    process.stdout.write(`${JSON.stringify(report)}\n`);
+    const collectionStatus = await recorder.finish(report);
+    process.stdout.write(`${JSON.stringify({ ...report, telemetry: { callId: recorder.callId, collectionStatus } })}\n`);
   } catch (err) {
     if (err instanceof StockSearchInputError) {
       console.error(err.message);
