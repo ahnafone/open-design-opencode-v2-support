@@ -181,8 +181,8 @@ quotes it in the `layout-primitives` context fact. It is structure only —
 display, flex/grid, overflow, wrapping, ratio, and opt-in icon geometry — and
 sets no palette, type, spacing scale, or component look. Put the whole block
 into the document's own `<style>` as its first rule set (`@layer od-layout`
-must come first so the product's CSS wins except for native hidden visibility), keep the
-`OD-LAYOUT-PRIMITIVES v1` marker comments, and compose the shapes below from it
+must come first so the product's CSS wins except for native hidden
+visibility), keep the `OD-LAYOUT-PRIMITIVES v1` marker comments, and compose the shapes below from it
 instead of re-deriving them per card, row, tile, or chip.
 
 Preserve `[hidden]:not([hidden="until-found" i]) { display: none !important; }`

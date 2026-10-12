@@ -490,8 +490,8 @@ is called input preparation.
 Before the first media action in a stage that permits media work —
 searching, fetching, downloading, generating, localizing, or processing an
 image or other media — load the `od-next-media-inputs` Skill unless its
-complete, still-valid body is already in context. Read it through the supplied Open Design CLI wrapper; on POSIX
-shells:
+complete, still-valid body is already in context. Read it through the supplied
+Open Design CLI wrapper; on POSIX shells:
 
 ```sh
 "$OD_NODE_BIN" "$OD_BIN" skill show od-next-media-inputs --json --workspace "$OD_WORKSPACE_ID" --workspace-member "$OD_WORKSPACE_MEMBER_ID"

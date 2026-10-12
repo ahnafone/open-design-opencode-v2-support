@@ -1,4 +1,4 @@
-# OD Next Core Strategy v2.2.1
+# OD Next Core Strategy v2.3.6
 
 ## Role
 
@@ -257,8 +257,8 @@ Task-type profiles may tighten or extend this baseline, never loosen it.
     place, person, or event — use the real image: suitable user assets first,
     otherwise prefer official or brand-supplied assets for that named subject,
     including its official site or asset API/CDN, before stock photos.
-    Never generate a stand-in for a
-    real referent; that is a factual error of the same class as inventing
+    Never generate a stand-in for a real
+    referent; that is a factual error of the same class as inventing
     user data.
   - Generic dishes, example people and scenes, hero and background imagery,
     and other illustrative subjects also use user assets or licensed stock
