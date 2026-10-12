@@ -1,4 +1,4 @@
-# OD Next Marketing Task Profile v2.0.0
+# OD Next Marketing Task Profile v2.0.4
 
 > Rollout: active
 

@@ -48,12 +48,12 @@ describe('od media stock-search', () => {
     });
     expect(report.providers).toEqual(['pexels']);
     expect(report.slots[0]).toMatchObject({
-      id: 'Frames', status: 'ok', provider: 'pexels', path: 'assets/stock/frames.jpg',
+      id: 'Frames', status: 'ok', provider: 'pexels', path: expect.stringMatching(/^assets\/stock\/frames-[a-f0-9]{12}\.jpg$/),
       width: 1200, height: 800, alt: 'Black eyeglasses frame on a pink background',
     });
     expect(seen).toContain('https://images.pexels.com/photos/2/pexels-photo-2.jpeg?auto=compress&cs=tinysrgb&w=900');
     const credits = JSON.parse(await readFile(path.join(cwd, 'assets/stock/credits.json'), 'utf8'));
-    expect(credits[0]).toMatchObject({ path: 'assets/stock/frames.jpg', license: expect.stringContaining('Pexels License') });
+    expect(credits[0]).toMatchObject({ path: report.slots[0]!.path, license: expect.stringContaining('Pexels License') });
   });
 
   it('falls back to Pixabay when Pexels has no matching photo', async () => {
@@ -76,6 +76,49 @@ describe('od media stock-search', () => {
 
   it('reports a missing key as a configuration error instead of searching', async () => {
     await expect(stockSearch({ cwd, env: {}, slots: [{ id: 'a', query: 'x' }] })).rejects.toBeInstanceOf(StockSearchConfigError);
+  });
+
+  it('keeps distinct slot IDs in separate files and attribution records', async () => {
+    const ids = ['Hero', 'hero', '狗狗', '猫咪', 'hero image', 'hero-image'];
+    const fetch = fakeFetch((url) => {
+      if (url.startsWith('https://api.pexels.com/')) return { json: { photos: [pexelsPhoto(1, 'Dog in a park')] } };
+      if (url.startsWith('https://images.pexels.com/')) return { body: JPEG };
+      return undefined;
+    });
+    const report = await stockSearch({
+      cwd, env: { PEXELS_API_KEY: 'k' }, fetch,
+      slots: ids.map((id) => ({ id, query: 'dog' })),
+    });
+    expect(report.slots.every((slot) => slot.status === 'ok')).toBe(true);
+    const paths = report.slots.map((slot) => slot.path!);
+    expect(new Set(paths).size).toBe(ids.length);
+    for (const file of paths) expect(await readFile(path.join(cwd, file))).toEqual(JPEG);
+    const credits = JSON.parse(await readFile(path.join(cwd, 'assets/stock/credits.json'), 'utf8'));
+    expect(credits).toHaveLength(ids.length);
+    expect(new Set(credits.map((credit: { path: string }) => credit.path))).toEqual(new Set(paths));
+  });
+
+  it('rejects duplicate slot IDs before searching or writing files', async () => {
+    const seen: string[] = [];
+    await expect(stockSearch({
+      cwd, env: { PEXELS_API_KEY: 'k' },
+      slots: [{ id: 'hero', query: 'dog' }, { id: 'hero', query: 'cat' }],
+      fetch: fakeFetch(() => ({ json: { photos: [] } }), seen),
+    })).rejects.toThrow(/slot/i);
+    expect(seen).toEqual([]);
+  });
+
+  it.each([
+    { concurrency: 0 }, { concurrency: -1 }, { concurrency: Number.NaN }, { concurrency: 1.5 },
+    { requestTimeoutMs: Number.NaN }, { requestTimeoutMs: Number.POSITIVE_INFINITY },
+    { budgetMs: -1 }, { budgetMs: Number.NaN },
+  ])('rejects invalid stock-search execution limits: %j', async (limits) => {
+    const seen: string[] = [];
+    await expect(stockSearch({
+      cwd, env: { PEXELS_API_KEY: 'k' }, slots: [{ id: 'hero', query: 'dog' }],
+      fetch: fakeFetch(() => ({ json: { photos: [] } }), seen), ...limits,
+    })).rejects.toThrow(/positive integer/);
+    expect(seen).toEqual([]);
   });
 
   it('marks slots that start after the budget as budget_exceeded', async () => {

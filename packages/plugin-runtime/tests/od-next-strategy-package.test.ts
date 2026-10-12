@@ -132,7 +132,7 @@ describe('bundled OD Next Strategy V2 package', () => {
 
     expect(prototype?.version).toBe('2.3.5');
     expect(prototype?.resources?.find((resource) => resource.path.endsWith('/layout.css'))?.version)
-      .toBe('1.1.0');
+      .toBe('1.1.1');
     expect(ruleCard).toContain('### Bound functional icon geometry');
     expect(ruleCard).toContain('`.od-icon`');
     expect(ruleCard).toContain('`--od-icon-size`');

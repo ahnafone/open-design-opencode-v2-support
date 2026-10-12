@@ -9,6 +9,7 @@
 // only match keywords, so each slot re-ranks a 20-photo pool by its alt text.
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 export type StockProvider = 'pexels' | 'pixabay';
@@ -58,6 +59,7 @@ export type StockSearchReport = {
 };
 
 export class StockSearchConfigError extends Error {}
+export class StockSearchInputError extends Error {}
 
 const LICENSES: Record<StockProvider, string> = {
   pexels: 'Pexels License (https://www.pexels.com/license/)',
@@ -107,7 +109,28 @@ function pickBest(query: string, candidates: Candidate[]): Candidate | null {
 
 function slotFileName(id: string): string {
   const safe = id.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
-  return `${safe || 'image'}.jpg`;
+  // Canonical IDs keep readable paths; altered IDs retain their identity after
+  // case folding, punctuation removal, truncation, or non-Latin normalization.
+  const suffix = safe === id ? '' : `-${createHash('sha256').update(id).digest('hex').slice(0, 12)}`;
+  return `${safe || 'image'}${suffix}.jpg`;
+}
+
+function validateExecutionInputs(options: StockSearchOptions): void {
+  for (const [name, value] of [
+    ['concurrency', options.concurrency],
+    ['requestTimeoutMs', options.requestTimeoutMs],
+    ['budgetMs', options.budgetMs],
+  ] as const) {
+    if (value !== undefined && (!Number.isSafeInteger(value) || value < 1)) {
+      throw new StockSearchInputError(`${name} must be a finite positive integer`);
+    }
+  }
+  const files = new Set<string>();
+  for (const slot of options.slots) {
+    const file = slotFileName(slot.id);
+    if (files.has(file)) throw new StockSearchInputError('slot IDs must map to distinct image files');
+    files.add(file);
+  }
 }
 
 async function getJson(fetchImpl: typeof fetch, url: string, headers: Record<string, string>, timeoutMs: number): Promise<any> {
@@ -181,6 +204,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
 }
 
 export async function stockSearch(options: StockSearchOptions): Promise<StockSearchReport> {
+  validateExecutionInputs(options);
   const env = options.env ?? process.env;
   const keys: Partial<Record<StockProvider, string>> = {
     ...(env.PEXELS_API_KEY?.trim() ? { pexels: env.PEXELS_API_KEY.trim() } : {}),

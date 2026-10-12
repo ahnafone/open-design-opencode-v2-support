@@ -30,7 +30,7 @@ import {
   removeJsonInstall,
 } from './mcp-agent-install.js';
 import { resolveMcpWorkspaceContext } from './mcp-workspace-context.js';
-import { StockSearchConfigError, stockSearch } from './media/stock-search.js';
+import { StockSearchConfigError, StockSearchInputError, stockSearch } from './media/stock-search.js';
 
 const argv = process.argv.slice(2);
 
@@ -1806,6 +1806,10 @@ async function runMediaStockSearch(rawArgs) {
     });
     process.stdout.write(`${JSON.stringify(report)}\n`);
   } catch (err) {
+    if (err instanceof StockSearchInputError) {
+      console.error(err.message);
+      process.exit(2);
+    }
     if (err instanceof StockSearchConfigError) {
       process.stdout.write(`${JSON.stringify({ error: 'no_stock_api_key', message: err.message })}\n`);
       process.exit(5);
