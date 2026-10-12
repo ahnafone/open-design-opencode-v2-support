@@ -1803,6 +1803,7 @@ async function runMediaStockSearch(rawArgs) {
       budgetMs: numberFlag('budget-ms'),
       requestTimeoutMs: numberFlag('timeout-ms'),
       concurrency: numberFlag('concurrency'),
+      onAttempt: (event) => console.error(`[stock-search] ${JSON.stringify(event)}`),
     });
     process.stdout.write(`${JSON.stringify(report)}\n`);
   } catch (err) {
@@ -2410,7 +2411,11 @@ Stock search:
   Output: one JSON line {"providers":[...],"slots":[{id,status,path,width,height,
   alt,author,sourceUrl,license,...}]}. status is ok | not_found | error |
   budget_exceeded. Judge fit from alt; credits are appended to
-  <out-dir>/credits.json.`);
+  <out-dir>/credits.json. Each slot's attempts retain provider/stage/status,
+  HTTP errors and Pexels monthly quota (limit/remaining/resetUnix; missing
+  headers are null). Failed Pexels attempts remain after a Pixabay success.
+  The same structured attempts stream to stderr as [stock-search] JSON lines,
+  including HTTP 429 and Retry-After when supplied. No API keys are logged.`);
 }
 
 // ---------------------------------------------------------------------------

@@ -11,9 +11,30 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { redactSecrets } from '../redact.js';
 
 export type StockProvider = 'pexels' | 'pixabay';
 export type StockOrientation = 'landscape' | 'portrait' | 'square';
+
+/** Quota headers describe the monthly API window, not the hourly budget. */
+export type StockRateLimit = {
+  period: 'month';
+  limit: number | null;
+  remaining: number | null;
+  resetUnix: number | null;
+};
+
+export type StockSearchAttempt = {
+  provider: StockProvider;
+  stage: 'search' | 'download';
+  status: 'ok' | 'not_found' | 'error';
+  timestamp: string;
+  httpStatus: number | null;
+  rateLimited: boolean;
+  rateLimit?: StockRateLimit;
+  retryAfter?: string;
+  error?: string;
+};
 
 export type StockSlot = {
   id: string;
@@ -38,6 +59,8 @@ export type StockSlotResult = {
   sourceUrl?: string;
   license?: string;
   error?: string;
+  /** Includes failed providers even when a later provider succeeds. */
+  attempts?: StockSearchAttempt[];
 };
 
 export type StockSearchOptions = {
@@ -51,6 +74,8 @@ export type StockSearchOptions = {
   concurrency?: number;
   fetch?: typeof fetch;
   now?: () => number;
+  /** Allowlisted response metadata and scrubbed errors for execution logs. */
+  onAttempt?: (event: StockSearchAttempt & { slotId: string }) => void;
 };
 
 export type StockSearchReport = {
@@ -133,17 +158,46 @@ function validateExecutionInputs(options: StockSearchOptions): void {
   }
 }
 
-async function getJson(fetchImpl: typeof fetch, url: string, headers: Record<string, string>, timeoutMs: number): Promise<any> {
+type ResponseInfo = Pick<StockSearchAttempt, 'httpStatus' | 'rateLimit' | 'retryAfter'>;
+
+function nonNegativeInteger(value: string | null): number | null {
+  if (value === null || !/^\d+$/.test(value.trim())) return null;
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : null;
+}
+
+function responseInfo(response: Response, pexelsSearch = false): ResponseInfo {
+  const rawRetryAfter = response.headers.get('retry-after');
+  const seconds = nonNegativeInteger(rawRetryAfter);
+  const date = rawRetryAfter !== null && /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(rawRetryAfter)
+    ? Date.parse(rawRetryAfter) : NaN;
+  const retryAfter = seconds !== null ? String(seconds)
+    : Number.isFinite(date) ? new Date(date).toUTCString() : undefined;
+  return {
+    httpStatus: response.status,
+    ...(pexelsSearch ? { rateLimit: {
+      period: 'month' as const,
+      limit: nonNegativeInteger(response.headers.get('x-ratelimit-limit')),
+      remaining: nonNegativeInteger(response.headers.get('x-ratelimit-remaining')),
+      resetUnix: nonNegativeInteger(response.headers.get('x-ratelimit-reset')),
+    } } : {}),
+    ...(retryAfter !== undefined ? { retryAfter } : {}),
+  };
+}
+
+async function getJson(fetchImpl: typeof fetch, url: string, headers: Record<string, string>, timeoutMs: number, onResponse: (response: Response) => void): Promise<any> {
   const res = await fetchImpl(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+  // Observe headers before throwing or decoding: 429/invalid JSON must retain them.
+  onResponse(res);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-async function searchPexels(fetchImpl: typeof fetch, key: string, slot: StockSlot, width: number, timeoutMs: number): Promise<Candidate[]> {
+async function searchPexels(fetchImpl: typeof fetch, key: string, slot: StockSlot, width: number, timeoutMs: number, onResponse: (response: Response) => void): Promise<Candidate[]> {
   const params = new URLSearchParams({ query: slot.query, per_page: '20' });
   if (slot.orientation) params.set('orientation', slot.orientation);
   if (CJK.test(slot.query)) params.set('locale', 'zh-CN');
-  const body = await getJson(fetchImpl, `https://api.pexels.com/v1/search?${params}`, { authorization: key }, timeoutMs);
+  const body = await getJson(fetchImpl, `https://api.pexels.com/v1/search?${params}`, { authorization: key }, timeoutMs, onResponse);
   const photos = Array.isArray(body?.photos) ? body.photos.filter((p: any) => typeof p?.src?.original === 'string') : [];
   return photos.map((photo: any): Candidate => ({
     provider: 'pexels',
@@ -155,11 +209,11 @@ async function searchPexels(fetchImpl: typeof fetch, key: string, slot: StockSlo
   }));
 }
 
-async function searchPixabay(fetchImpl: typeof fetch, key: string, slot: StockSlot, width: number, timeoutMs: number): Promise<Candidate[]> {
+async function searchPixabay(fetchImpl: typeof fetch, key: string, slot: StockSlot, width: number, timeoutMs: number, onResponse: (response: Response) => void): Promise<Candidate[]> {
   const orientation = slot.orientation === 'landscape' ? 'horizontal' : slot.orientation === 'portrait' ? 'vertical' : 'all';
   const params = new URLSearchParams({ key, q: slot.query, image_type: 'photo', per_page: '20', safesearch: 'true', orientation });
   if (CJK.test(slot.query)) params.set('lang', 'zh');
-  const body = await getJson(fetchImpl, `https://pixabay.com/api/?${params}`, {}, timeoutMs);
+  const body = await getJson(fetchImpl, `https://pixabay.com/api/?${params}`, {}, timeoutMs, onResponse);
   const hits = Array.isArray(body?.hits) ? body.hits.filter((h: any) => typeof h?.webformatURL === 'string') : [];
   return hits.map((hit: any): Candidate => ({
     provider: 'pixabay',
@@ -214,6 +268,15 @@ export async function stockSearch(options: StockSearchOptions): Promise<StockSea
   if (providers.length === 0) {
     throw new StockSearchConfigError('no stock photo API key: set PEXELS_API_KEY or PIXABAY_API_KEY');
   }
+  const secrets = Object.values(keys).filter((key): key is string => Boolean(key)).sort((a, b) => b.length - a.length);
+  const safeError = (error: unknown): string => {
+    let message = error instanceof Error ? error.message : String(error);
+    for (const secret of secrets) {
+      message = message.split(secret).join('[REDACTED]');
+      message = message.split(encodeURIComponent(secret)).join('[REDACTED]');
+    }
+    return redactSecrets(message).replace(/\s+/g, ' ').trim().slice(0, 1_000);
+  };
   const fetchImpl = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
   const timeoutMs = options.requestTimeoutMs ?? 12_000;
@@ -223,23 +286,45 @@ export async function stockSearch(options: StockSearchOptions): Promise<StockSea
   await mkdir(path.resolve(cwd, outDir), { recursive: true });
 
   const results = await mapLimit(options.slots, options.concurrency ?? 6, async (slot): Promise<StockSlotResult> => {
-    const base = { id: slot.id, query: slot.query };
+    const attempts: StockSearchAttempt[] = [];
+    const base = { id: slot.id, query: slot.query, attempts };
     const width = Math.min(Math.max(Math.round(slot.width ?? 1200), 200), 2400);
     let lastError: string | undefined;
     for (const provider of providers) {
       const remaining = deadline - now();
       if (remaining <= 0) return { ...base, status: 'budget_exceeded' };
       const budget = Math.min(timeoutMs, remaining);
+      let stage: StockSearchAttempt['stage'] = 'search';
+      let response: ResponseInfo = { httpStatus: null };
+      const recordAttempt = (status: StockSearchAttempt['status'], error?: unknown) => {
+        const attempt: StockSearchAttempt = {
+          provider, stage, status, timestamp: new Date().toISOString(), ...response,
+          rateLimited: response.httpStatus === 429,
+          ...(error !== undefined ? { error: safeError(error) } : {}),
+        };
+        attempts.push(attempt);
+        try {
+          options.onAttempt?.({ slotId: slot.id, ...attempt });
+        } catch {
+          // Optional execution-log sinks must not change image acquisition.
+        }
+      };
       try {
         const search = provider === 'pexels' ? searchPexels : searchPixabay;
-        const candidate = pickBest(slot.query, await search(fetchImpl, keys[provider]!, slot, width, budget));
+        const candidate = pickBest(slot.query, await search(fetchImpl, keys[provider]!, slot, width, budget,
+          (res) => { response = responseInfo(res, provider === 'pexels'); }));
+        recordAttempt(candidate ? 'ok' : 'not_found');
         if (!candidate) continue;
+        stage = 'download';
+        response = { httpStatus: null };
         const res = await fetchImpl(candidate.downloadUrl, { signal: AbortSignal.timeout(Math.min(timeoutMs, Math.max(deadline - now(), 1))) });
+        response = responseInfo(res);
         if (!res.ok) throw new Error(`download HTTP ${res.status}`);
         const buf = Buffer.from(await res.arrayBuffer());
         const size = imageSize(buf);
         const rel = path.posix.join(outDir.split(path.sep).join('/'), slotFileName(slot.id));
         await writeFile(path.resolve(cwd, rel), buf);
+        recordAttempt('ok');
         return {
           ...base,
           status: 'ok',
@@ -254,7 +339,8 @@ export async function stockSearch(options: StockSearchOptions): Promise<StockSea
           license: LICENSES[provider],
         };
       } catch (error) {
-        lastError = `${provider}: ${error instanceof Error ? error.message : String(error)}`;
+        recordAttempt('error', error);
+        lastError = `${provider}: ${attempts.at(-1)!.error}`;
       }
     }
     return lastError ? { ...base, status: 'error', error: lastError } : { ...base, status: 'not_found' };

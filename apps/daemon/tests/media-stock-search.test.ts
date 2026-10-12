@@ -8,7 +8,7 @@ import { StockSearchConfigError, imageSize, stockSearch, subjectScore } from '..
 // Minimal JPEG: SOI + SOF0 declaring 1200x800.
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x03, 0x20, 0x04, 0xb0, 0x03, 0x01, 0x22, 0x00]);
 
-type Route = (url: string) => { status?: number; json?: unknown; body?: Buffer } | undefined;
+type Route = (url: string) => { status?: number; json?: unknown; body?: Buffer; headers?: Record<string, string> } | undefined;
 
 function fakeFetch(route: Route, seen: string[] = []): typeof fetch {
   return (async (input: string | URL | Request) => {
@@ -16,8 +16,11 @@ function fakeFetch(route: Route, seen: string[] = []): typeof fetch {
     seen.push(url);
     const hit = route(url);
     if (!hit) return new Response('not found', { status: 404 });
-    if (hit.body) return new Response(new Uint8Array(hit.body), { status: hit.status ?? 200 });
-    return new Response(JSON.stringify(hit.json ?? {}), { status: hit.status ?? 200, headers: { 'content-type': 'application/json' } });
+    if (hit.body) return new Response(new Uint8Array(hit.body), {
+      status: hit.status ?? 200,
+      ...(hit.headers ? { headers: hit.headers } : {}),
+    });
+    return new Response(JSON.stringify(hit.json ?? {}), { status: hit.status ?? 200, headers: { 'content-type': 'application/json', ...hit.headers } });
   }) as typeof fetch;
 }
 
@@ -119,6 +122,134 @@ describe('od media stock-search', () => {
       fetch: fakeFetch(() => ({ json: { photos: [] } }), seen), ...limits,
     })).rejects.toThrow(/positive integer/);
     expect(seen).toEqual([]);
+  });
+
+  it('records Pexels monthly quota headers and keeps each slot request separate', async () => {
+    let remaining = 23_148;
+    const emitted: unknown[] = [];
+    const report = await stockSearch({
+      cwd,
+      env: { PEXELS_API_KEY: 'pexels-test-key' },
+      concurrency: 1,
+      slots: [{ id: 'a', query: 'noodles' }, { id: 'b', query: 'noodles' }],
+      onAttempt: (event) => emitted.push(event),
+      fetch: fakeFetch((url) => url.startsWith('https://api.pexels.com/') ? {
+        json: { photos: [pexelsPhoto(4, 'Noodles in a bowl')] },
+        headers: {
+          'x-ratelimit-limit': '25000',
+          'x-ratelimit-remaining': String(--remaining),
+          'x-ratelimit-reset': '1792832062',
+          'authorization': 'must-not-be-logged',
+        },
+      } : { body: JPEG }),
+    });
+    expect(report.slots[0]?.attempts?.[0]).toMatchObject({
+      provider: 'pexels', stage: 'search', status: 'ok', httpStatus: 200,
+      rateLimit: { period: 'month', limit: 25000, remaining: 23147, resetUnix: 1792832062 },
+    });
+    expect(report.slots[1]?.attempts?.[0]?.rateLimit?.remaining).toBe(23146);
+    expect(emitted).toContainEqual(expect.objectContaining({ slotId: 'a', provider: 'pexels', httpStatus: 200 }));
+    expect(JSON.stringify(emitted)).not.toContain('must-not-be-logged');
+  });
+
+  it('keeps a Pexels 429 without quota headers after a successful Pixabay fallback', async () => {
+    const emitted: unknown[] = [];
+    const report = await stockSearch({
+      cwd,
+      env: { PEXELS_API_KEY: 'pexels-test-key', PIXABAY_API_KEY: 'pixabay-test-key' },
+      slots: [{ id: 'tofu', query: 'mapo tofu' }],
+      onAttempt: (event) => emitted.push(event),
+      fetch: fakeFetch((url) => {
+        if (url.startsWith('https://api.pexels.com/')) return { status: 429, headers: { 'retry-after': '60' } };
+        if (url.startsWith('https://pixabay.com/api/')) return { json: { hits: [{
+          pageURL: 'https://pixabay.com/photos/mapo-tofu-1/', tags: 'mapo tofu',
+          webformatURL: 'https://cdn.pixabay.com/photo/tofu.jpg',
+        }] } };
+        return { body: JPEG };
+      }),
+    });
+    expect(report.slots[0]).toMatchObject({ status: 'ok', provider: 'pixabay' });
+    expect(report.slots[0]?.attempts?.[0]).toMatchObject({
+      provider: 'pexels', stage: 'search', status: 'error', httpStatus: 429,
+      rateLimited: true, error: 'HTTP 429', retryAfter: '60',
+      rateLimit: { period: 'month', limit: null, remaining: null, resetUnix: null },
+    });
+    expect(report.slots[0]?.attempts?.[1]).toMatchObject({ provider: 'pixabay', stage: 'search', status: 'ok' });
+    expect(emitted[0]).toMatchObject({ slotId: 'tofu', provider: 'pexels', httpStatus: 429, error: 'HTTP 429' });
+  });
+
+  it('retains both provider failures and preserves a zero remaining quota', async () => {
+    const report = await stockSearch({
+      cwd,
+      env: { PEXELS_API_KEY: 'pexels-test-key', PIXABAY_API_KEY: 'pixabay-test-key' },
+      slots: [{ id: 'a', query: 'noodles' }],
+      fetch: fakeFetch((url) => url.startsWith('https://api.pexels.com/') ? {
+        status: 429,
+        headers: { 'x-ratelimit-limit': '25000', 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': 'invalid' },
+      } : { status: 503 }),
+    });
+    expect(report.slots[0]).toMatchObject({ status: 'error', error: 'pixabay: HTTP 503' });
+    expect(report.slots[0]?.attempts).toMatchObject([
+      { provider: 'pexels', httpStatus: 429, rateLimit: { limit: 25000, remaining: 0, resetUnix: null } },
+      { provider: 'pixabay', httpStatus: 503, error: 'HTTP 503' },
+    ]);
+  });
+
+  it.each([
+    ['Wed, 21 Oct 2026 07:28:00 GMT', 'Wed, 21 Oct 2026 07:28:00 GMT'],
+    ['-1', undefined],
+  ])('records a valid Retry-After date without treating %s as a loose date', async (header, expected) => {
+    const report = await stockSearch({
+      cwd, env: { PEXELS_API_KEY: 'pexels-test-key' }, slots: [{ id: 'a', query: 'noodles' }],
+      fetch: fakeFetch(() => ({ status: 429, headers: { 'retry-after': header! } })),
+    });
+    expect(report.slots[0]?.attempts?.[0]?.retryAfter).toBe(expected);
+  });
+
+  it('keeps successful acquisition when an optional execution-log sink fails', async () => {
+    const report = await stockSearch({
+      cwd, env: { PEXELS_API_KEY: 'pexels-test-key' }, slots: [{ id: 'a', query: 'noodles' }],
+      onAttempt: () => { throw new Error('log sink unavailable'); },
+      fetch: fakeFetch((url) => url.startsWith('https://api.pexels.com/')
+        ? { json: { photos: [pexelsPhoto(4, 'Noodles in a bowl')] } } : { body: JPEG }),
+    });
+    expect(report.slots[0]).toMatchObject({ status: 'ok', provider: 'pexels' });
+    expect(report.slots[0]?.attempts).toHaveLength(2);
+  });
+
+  it('distinguishes a CDN download 429 from the successful search quota', async () => {
+    const report = await stockSearch({
+      cwd,
+      env: { PEXELS_API_KEY: 'pexels-test-key' },
+      slots: [{ id: 'a', query: 'noodles' }],
+      fetch: fakeFetch((url) => url.startsWith('https://api.pexels.com/')
+        ? { json: { photos: [pexelsPhoto(4, 'Noodles in a bowl')] }, headers: { 'x-ratelimit-remaining': '120' } }
+        : { status: 429 }),
+    });
+    expect(report.slots[0]?.attempts).toMatchObject([
+      { stage: 'search', status: 'ok', httpStatus: 200, rateLimit: { remaining: 120 } },
+      { stage: 'download', status: 'error', httpStatus: 429, rateLimited: true },
+    ]);
+    expect(report.slots[0]?.attempts?.[1]?.rateLimit).toBeUndefined();
+  });
+
+  it('scrubs both injected keys from network errors and diagnostic output', async () => {
+    const emitted: unknown[] = [];
+    const pexelsKey = 'pexels-secret-without-vendor-prefix';
+    const pixabayKey = 'pixabay-secret-without-vendor-prefix';
+    const report = await stockSearch({
+      cwd,
+      env: { PEXELS_API_KEY: pexelsKey, PIXABAY_API_KEY: pixabayKey },
+      slots: [{ id: 'a', query: 'noodles' }],
+      onAttempt: (event) => emitted.push(event),
+      fetch: (async () => { throw new Error(`network failed ${pexelsKey} https://pixabay.com/api/?key=${pixabayKey}`); }) as typeof fetch,
+    });
+    expect(report.slots[0]?.attempts).toHaveLength(2);
+    expect(report.slots[0]?.attempts?.[0]).toMatchObject({ stage: 'search', status: 'error', httpStatus: null });
+    const logged = JSON.stringify({ report, emitted });
+    expect(logged).not.toContain(pexelsKey);
+    expect(logged).not.toContain(pixabayKey);
+    expect(logged).toContain('[REDACTED]');
   });
 
   it('marks slots that start after the budget as budget_exceeded', async () => {
