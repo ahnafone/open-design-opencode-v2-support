@@ -34,7 +34,7 @@
 }
 .project-actions-button-primary {
   background: var(--accent);
-  color: var(--accent-text, white);
+  color: var(--accent-text, var(--accent-contrast));
   border-color: var(--accent);
 }
 .project-actions-button-primary:hover:not(:disabled) {
@@ -123,7 +123,7 @@
   background: color-mix(in srgb, var(--text-strong, #1f2328) 78%, transparent);
   -webkit-backdrop-filter: var(--glass-backdrop);
   backdrop-filter: var(--glass-backdrop);
-  color: var(--bg, white);
+  color: var(--bg, var(--accent-contrast));
   font-size: 13px;
   line-height: 1.4;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
@@ -234,7 +234,7 @@
 }
 .workspace-toast-anchor:not(:has(.od-toast-browser-snapshot)) .od-toast.tone-success {
   border: 1px solid color-mix(in srgb, var(--success, #2da44e) 30%, transparent);
-  background: color-mix(in srgb, var(--success, #2da44e) 15%, var(--bg, #fff));
+  background: color-mix(in srgb, var(--success, #2da44e) 15%, var(--bg, var(--bg)));
   color: var(--success, #2da44e);
 }
 .workspace-toast-anchor .od-toast.od-toast-browser-snapshot {
@@ -273,7 +273,7 @@
      page's share/sync feedback wears the success palette even while
      loading, instead of the base .od-toast dark scrim + white text. */
   border: 1px solid color-mix(in srgb, var(--success, #2da44e) 30%, transparent);
-  background: color-mix(in srgb, var(--success, #2da44e) 15%, var(--bg, #fff));
+  background: color-mix(in srgb, var(--success, #2da44e) 15%, var(--bg, var(--bg)));
   color: var(--success, #2da44e);
 }
 /* Keep every glyph on the green pill green: out-specify the dark-toast close
@@ -423,7 +423,7 @@
 .od-toast:not(.tone-success):not(.tone-error) .od-toast-close {
   border-color: rgba(255, 255, 255, 0.24);
   background: rgba(255, 255, 255, 0.16);
-  color: var(--bg, #fff);
+  color: var(--bg, var(--accent-contrast));
 }
 .od-toast.od-toast-browser-snapshot .od-toast-close {
   top: 8px;
@@ -450,7 +450,7 @@
   margin-top: 8px;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--bg, white);
+  color: var(--bg, var(--accent-contrast));
   font-size: 12px;
   padding: 4px 10px;
   border-radius: var(--radius-sm, 4px);
@@ -1333,7 +1333,7 @@
 }
 .workspace-shell .workspace-tab.is-active {
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--bg);
   border-color: var(--workspace-active-tab-border);
   box-shadow:
     0 1px 2px color-mix(in srgb, var(--text) 6%, transparent),
@@ -1387,7 +1387,7 @@
   /* Light mode leans whiter than raw --glass-regular so the pill reads as
      "the active tab", close to the solid #fff it replaces. Dark mode uses
      the glass token as-is (also fixes the old hardcoded-#fff dark pill). */
-  --workspace-glide-frost: color-mix(in srgb, #ffffff 34%, var(--glass-regular));
+  --workspace-glide-frost: color-mix(in srgb, var(--accent-contrast) 34%, var(--glass-regular));
 }
 [data-theme="dark"] .workspace-shell .workspace-tabs-chrome {
   --workspace-glide-frost: var(--glass-regular);
@@ -1612,7 +1612,7 @@
   }
 }
 .app .split-resize-handle {
-  --split-resize-gradient-surface: #fff;
+  --split-resize-gradient-surface: var(--accent-contrast);
   width: var(--project-chat-handle-width, 4px);
   min-width: 0;
   background: transparent;
@@ -2347,7 +2347,7 @@
   display: block;
   border: 0;
   object-fit: cover;
-  background: #fff;
+  background: var(--bg);
   pointer-events: none;
 }
 .app .chat-design-artifact-preview .sketch-preview,
@@ -3108,14 +3108,14 @@
 
 .app .df-panel,
 .app .df-main {
-  background: #fff;
+  background: var(--bg);
 }
 .app .df-main {
   border-right-color: var(--border);
 }
 .app .df-body {
   padding: 4px 20px 20px;
-  background: #fff;
+  background: var(--bg);
 }
 .app .df-controls-row {
   margin: 0 0 14px;
@@ -3954,7 +3954,7 @@
   /* Match the popover surface: an off-tone band here reads as a divider line
      against the panel background. Still opaque so the sticky label masks the
      list rows scrolling beneath it. */
-  background: var(--bg-panel, var(--surface, #fff));
+  background: var(--bg-panel, var(--surface, var(--bg)));
 }
 .project-ds-picker-group-label:first-child {
   padding-top: 4px;
@@ -4178,7 +4178,7 @@
   width: 1280px;
   height: 720px;
   border: 0;
-  background: #fff;
+  background: var(--bg);
   transform: scale(0.181);
   transform-origin: top left;
   pointer-events: none;

@@ -45,13 +45,13 @@ function composioLogoUrl(
  */
 export function useResolvedTheme(): 'light' | 'dark' {
   const read = (): 'light' | 'dark' => {
-    if (typeof document === 'undefined') return 'dark';
+    if (typeof document === 'undefined') return 'light';
     const attr = document.documentElement.getAttribute('data-theme');
     if (attr === 'light' || attr === 'dark') return attr;
     if (typeof window !== 'undefined' && window.matchMedia) {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    return 'dark';
+    return 'light';
   };
   const [theme, setTheme] = useState<'light' | 'dark'>(read);
   useEffect(() => {

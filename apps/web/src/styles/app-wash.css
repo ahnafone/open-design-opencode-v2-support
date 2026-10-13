@@ -13,7 +13,7 @@
 :root {
   /* Pastel wash palette. Alphas run a touch hot because the veils above
      mute them. */
-  --wash-base: #ffffff; /* pure white ground */
+  --wash-base: var(--bg); /* follows the themed app ground */
   --wash-blue: rgba(168, 196, 236, 0.55); /* pale sky blue */
   --wash-pink: rgba(240, 197, 216, 0.45); /* pale rose */
   --wash-peach: rgba(247, 224, 196, 0.5); /* warm cream light */
@@ -49,7 +49,7 @@
    something to show without tinting the workspace. Veil tokens derive from
    --bg/--bg-panel and flip with the theme on their own. */
 [data-theme='dark'] {
-  --wash-base: #202020;
+  --wash-base: var(--bg);
   --wash-blue: rgba(96, 126, 178, 0.14);
   --wash-pink: rgba(168, 110, 142, 0.1);
   --wash-peach: rgba(178, 142, 100, 0.09);
@@ -57,7 +57,7 @@
 }
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) {
-    --wash-base: #202020;
+    --wash-base: var(--bg);
     --wash-blue: rgba(96, 126, 178, 0.14);
     --wash-pink: rgba(168, 110, 142, 0.1);
     --wash-peach: rgba(178, 142, 100, 0.09);

@@ -7,6 +7,7 @@ const pluginsHomeCss = readFileSync(
   new URL('../../src/styles/home/plugins-home.css', import.meta.url),
   'utf8',
 );
+const tokensCss = readFileSync(new URL('../../src/styles/tokens.css', import.meta.url), 'utf8');
 
 
 function cssDeclarations(rawCss: string, selector: string): string {
@@ -68,6 +69,14 @@ function contrastRatio(foreground: string, background: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+function resolveToken(theme: 'light' | 'dark', token: string): string {
+  const selector = theme === 'light' ? ':root' : '[data-theme="dark"]';
+  const block = cssDeclarations(tokensCss, selector);
+  const value = ruleValue(block, token);
+  if (!value.startsWith('#')) throw new Error(`Expected resolved ${token} hex token, got ${value}`);
+  return value;
+}
+
 describe('plugin use menu contrast', () => {
   it('keeps option text readable on hover and keyboard focus', () => {
     /*
@@ -79,17 +88,27 @@ describe('plugin use menu contrast', () => {
     const globalHoverSelector = ':where(button:hover:not(:disabled))';
     const hoverSelector = 'button.plugins-home__use-menu-item:hover:not(:disabled)';
     const focusSelector = 'button.plugins-home__use-menu-item:focus-visible';
+    const menuSelector = '.plugins-home__use-menu-list';
     const globalHover = cssDeclarations(indexCss, globalHoverSelector);
     const hover = cssDeclarations(pluginsHomeCss, hoverSelector);
     const focus = cssDeclarations(pluginsHomeCss, focusSelector);
+    const menu = cssDeclarations(pluginsHomeCss, menuSelector);
+
+    expect(ruleValue(menu, 'background')).toBe('var(--bg-panel)');
+    expect(ruleValue(menu, 'border')).toBe('1px solid var(--border)');
 
     expect(ruleValue(globalHover, 'background')).toBe('var(--bg-subtle)');
 
-    for (const block of [hover, focus]) {
-      const background = ruleValue(block, 'background');
-      const color = ruleValue(block, 'color');
-
-      expect(contrastRatio(color, background)).toBeGreaterThanOrEqual(4.5);
+    for (const theme of ['light', 'dark'] as const) {
+      const rowHover = resolveToken(theme, '--bg-subtle');
+      const ink = resolveToken(theme, '--text-strong');
+      for (const block of [hover, focus]) {
+        expect(ruleValue(block, 'background')).toBe('var(--bg-subtle)');
+        expect(ruleValue(block, 'color')).toBe('var(--text-strong)');
+        expect(contrastRatio(ink, rowHover)).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(ruleValue(focus, 'outline')).toBe('2px solid var(--border-strong)');
+      expect(contrastRatio(resolveToken(theme, '--text-strong'), resolveToken(theme, '--bg-panel'))).toBeGreaterThanOrEqual(4.5);
     }
   });
 });

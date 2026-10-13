@@ -8,6 +8,7 @@
    prefers-reduced-motion rule in base.css. Stop positions mirror SMIL's even
    distribution of N values (value i at i/(N-1)), so the motion is unchanged. */
 
+/* Theme-independent matrix artwork. */
 .loader {
   flex: none;
 }

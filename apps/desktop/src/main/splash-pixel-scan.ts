@@ -211,7 +211,17 @@ export const SPLASH_PIXEL_SCAN_MARKUP = `
  * Inline renderer for the splash window. Vanilla ES5-ish on purpose: it runs
  * in a sandboxed `data:` document with no bundler and no polyfills.
  */
-export function splashPixelScanScript(): string {
+export function splashPixelScanScript(theme: "light" | "dark"): string {
+  const darkTint = theme === "dark" ? `
+              ctx.globalCompositeOperation = "source-in";
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(0, 0, word.width, word.height);
+              ctx.globalCompositeOperation = "source-over";` : "";
+  const darkStaticTint = theme === "dark" ? `
+            ctx.globalCompositeOperation = "source-in";
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalCompositeOperation = "source-over";` : "";
   return `
       (function () {
         var host = document.getElementById("splash-logo");
@@ -268,6 +278,7 @@ export function splashPixelScanScript(): string {
             var dw = img.naturalWidth * s;
             var dh = img.naturalHeight * s;
             ctx.drawImage(img, (size.w - dw) / 2, (size.h - dh) / 2, dw, dh);
+${darkTint}
           }
         }
 
@@ -289,6 +300,7 @@ export function splashPixelScanScript(): string {
           var dw = img.naturalWidth * s;
           var dh = img.naturalHeight * s;
           ctx.drawImage(img, (size.w - dw) / 2, (size.h - dh) / 2, dw, dh);
+${darkStaticTint}
         }
 
         function compile(type, source) {

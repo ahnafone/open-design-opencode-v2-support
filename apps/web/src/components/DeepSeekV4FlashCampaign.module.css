@@ -1,3 +1,4 @@
+/* Theme-independent campaign/art palette; neutral chrome uses theme tokens. */
 /* Layout only — the scrim material comes from the shared `<Dialog>` backdrop
    (--scrim-tint / --scrim-backdrop). See AmrArtifactUpgradeDialog. */
 .backdrop {

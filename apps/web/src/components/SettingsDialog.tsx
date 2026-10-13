@@ -211,6 +211,7 @@ import {
   applyAppearanceToDocument,
   resolveAccentColor,
 } from '../state/appearance';
+import { SettingsAppearanceSection } from './SettingsAppearanceSection';
 import { isAutosaveDraftOnlyChange } from '../App';
 import {
   FAILURE_SOUNDS,
@@ -252,7 +253,7 @@ export type SettingsSection =
 
 // Maps a requested section token onto the section that actually owns a nav
 // item. Only tokens whose content is *folded into* another section belong
-// here: language / appearance / notifications / pet / projectLocations /
+// here: language / notifications / pet / projectLocations /
 // critiqueTheater all render inside General, so a deep link to any of them
 // must land on General and highlight the General nav item. `pet` joined that
 // list when #5517's General page absorbed the pet picker — the composer's
@@ -269,7 +270,6 @@ export type SettingsSection =
 function normalizeSettingsSection(section: SettingsSection): SettingsSection {
   switch (section) {
     case 'language':
-    case 'appearance':
     case 'notifications':
     case 'pet':
     case 'projectLocations':
@@ -1550,14 +1550,18 @@ export function SettingsDialog({
     ReadonlySet<string>
   >(() => new Set());
   const previousInitialRef = useRef(initial);
-  // Accent only — the theme is a constant now that the app ships light-only.
   const lastSavedAppearanceRef = useRef({
+    theme: initial.theme ?? 'system',
     accentColor: resolveAccentColor(initial.accentColor),
   });
 
   useEffect(() => {
     onDraftChange?.(cfg);
   }, [cfg, onDraftChange]);
+
+  useEffect(() => {
+    applyAppearanceToDocument({ theme: cfg.theme ?? 'system', accentColor: cfg.accentColor });
+  }, [cfg.theme, cfg.accentColor]);
 
   // settings_view — fire on dialog open and on every section switch so the
   // configuration funnel can see which section the user spent time in.
@@ -1567,9 +1571,10 @@ export function SettingsDialog({
 
   useEffect(() => {
     lastSavedAppearanceRef.current = {
+      theme: initial.theme ?? 'system',
       accentColor: resolveAccentColor(initial.accentColor),
     };
-  }, [initial.accentColor]);
+  }, [initial.theme, initial.accentColor]);
 
   useEffect(() => {
     const previousInitial = previousInitialRef.current;
@@ -3363,6 +3368,7 @@ export function SettingsDialog({
             committedClearedByokProviderKeyRef.current = null;
           }
           lastSavedAppearanceRef.current = {
+            theme: persistedSnapshot.theme ?? 'system',
             accentColor: resolveAccentColor(persistedSnapshot.accentColor),
           };
           // If a newer edit landed while the request was in flight,
@@ -3920,11 +3926,7 @@ export function SettingsDialog({
     integrations: { title: t('settings.mcpServerTitle'), subtitle: t('settings.mcpServerHint') },
     mcpClient: { title: t('settings.externalMcpTitle'), subtitle: t('settings.externalMcpHint') },
     language: { title: t('settings.language'), subtitle: t('settings.languageHint') },
-    // The theme setting is gone (the app ships light-only), so `appearance` has
-    // no copy of its own. It survives only as a legacy deep-link token that
-    // `normalizeSettingsSection` folds into General, so this entry can never be
-    // the active header — it exists to keep the Record exhaustive.
-    appearance: { title: t('settings.general'), subtitle: t('settings.generalHint') },
+    appearance: { title: t('settings.appearanceTitle'), subtitle: t('settings.appearanceSubtitle') },
     critiqueTheater: {
       title: t('critiqueTheater.settingsNav'),
       subtitle: t('critiqueTheater.settingsNavHint'),
@@ -4394,6 +4396,18 @@ export function SettingsDialog({
               <span>
                 <strong>{t('settings.general')}</strong>
                 <small>{t('settings.generalHint')}</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={`settings-nav-item${activeSection === 'appearance' ? ' active' : ''}`}
+              onClick={() => setActiveSection('appearance')}
+              data-testid="settings-nav-appearance"
+            >
+              <Icon name="sun" size={18} />
+              <span>
+                <strong>{t('settings.appearanceTitle')}</strong>
+                <small>{t('settings.appearanceSubtitle')}</small>
               </span>
             </button>
             <button
@@ -6034,6 +6048,13 @@ export function SettingsDialog({
                 />
               </div>
             </section>
+          ) : null}
+
+          {activeSection === 'appearance' ? (
+            <SettingsAppearanceSection
+              value={{ theme: cfg.theme ?? 'system', accentColor: resolveAccentColor(cfg.accentColor) }}
+              onChange={(appearance) => setCfg({ ...cfg, ...appearance })}
+            />
           ) : null}
 
           {activeSection === 'labs' ? (

@@ -1132,7 +1132,7 @@
   height: 520px;
   border: 0;
   display: block;
-  background: #fff;
+background: var(--bg-panel);
 }
 
 .dsTokens {
@@ -1243,7 +1243,7 @@
   transform: scale(0.5);
   transform-origin: top left;
   pointer-events: none;
-  background: #fff;
+background: var(--bg-panel);
 }
 
 .assetMeta {
@@ -1415,7 +1415,7 @@
   width: 100%;
   min-height: 0;
   border: 0;
-  background: #fff;
+background: var(--bg-panel);
 }
 
 .designMdModalPanel {
@@ -1622,7 +1622,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #fff;
+background: var(--bg-panel);
 }
 
 .coverFrame {
@@ -1630,7 +1630,7 @@
   height: 142.857%;
   border: 0;
   display: block;
-  background: #fff;
+background: var(--bg-panel);
   pointer-events: none;
   transform: scale(0.7);
   transform-origin: top left;

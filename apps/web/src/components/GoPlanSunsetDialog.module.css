@@ -1,3 +1,4 @@
+/* Theme-independent campaign/art palette; neutral chrome uses theme tokens. */
 .backdrop {
   z-index: 1800;
   padding: 24px;

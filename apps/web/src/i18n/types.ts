@@ -1202,6 +1202,10 @@ export interface Dict {
   'entry.creditsMemberNoticeBody': string;
   'entry.creditsMemberNoticeAction': string;
   'entry.accountToggleTheme': string;
+  'settings.appearanceTitle': string;
+  'settings.appearanceSubtitle': string;
+  'settings.themeSystem': string;
+  'settings.accentColor': string;
   'entry.accountSwitchLanguage': string;
   'entry.accountLanguageMeta': string;
   'entry.accountGithubHelp': string;

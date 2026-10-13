@@ -20,6 +20,7 @@
   initial-value: 0deg;
 }
 
+/* Theme-independent authored orb palette; decorative artwork. */
 .orb {
   /* Palette. Three constraints from the original, none of them negotiable:
      `--c3` may occupy at most 2 of the 8 layers (more and the orb turns into a

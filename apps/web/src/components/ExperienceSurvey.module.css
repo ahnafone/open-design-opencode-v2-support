@@ -1,3 +1,4 @@
+/* Theme-independent campaign/art palette; neutral chrome uses theme tokens. */
 /* Experience survey card. Floats bottom-right above the workspace after a
    successful export, mounted globally (App.tsx) so navigating project → home
    keeps the same card and the same answers.

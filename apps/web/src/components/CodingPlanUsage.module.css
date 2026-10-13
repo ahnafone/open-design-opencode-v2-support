@@ -37,7 +37,7 @@
    and the design keeps the whole row on one size. */
 .period {
   margin-left: 4px;
-  color: #bdbdbd;
+color: var(--text-faint);
   font: inherit;
   white-space: nowrap;
 }

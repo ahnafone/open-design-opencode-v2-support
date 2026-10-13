@@ -1,3 +1,4 @@
+/* Campaign badge artwork/colors are theme-independent authored content. */
 .badge {
   display: block;
   max-width: min(240px, calc(100vw - 88px));

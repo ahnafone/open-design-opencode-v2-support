@@ -17,7 +17,7 @@ import {
   splashPixelScanScript,
 } from '../../src/main/splash-pixel-scan.js';
 
-const script = splashPixelScanScript();
+const script = splashPixelScanScript("light");
 const webEngineSource = readFileSync(
   fileURLToPath(new URL('../../../web/src/components/home-hero/pixel-scan/engine.ts', import.meta.url)),
   'utf8',
@@ -44,6 +44,30 @@ describe('splash pixel-scan wordmark', () => {
     // side and not copied here, the splash and the Home logo drift apart.
     expect(script).toContain(JSON.stringify(`\n${webShader('SHADER')}\n`));
     expect(script).toContain(JSON.stringify(`\n${webShader('VERT')}\n`));
+  });
+
+  test('tints only the dark-mode glyph white', () => {
+    const darkScript = splashPixelScanScript("dark");
+    const functionBody = (name: string): string => {
+      const start = darkScript.indexOf(`function ${name}(`);
+      expect(start, `${name} function should exist`).toBeGreaterThanOrEqual(0);
+      const bodyStart = darkScript.indexOf('{', start);
+      const nextFunction = darkScript.indexOf('\n        function ', bodyStart);
+      return darkScript.slice(bodyStart, nextFunction < 0 ? undefined : nextFunction);
+    };
+    for (const name of ['rasterise', 'drawStatic']) {
+      const body = functionBody(name);
+      const sourceIn = body.indexOf('globalCompositeOperation = "source-in"');
+      const whiteFill = body.indexOf('fillStyle = "#ffffff"');
+      const fillRect = body.indexOf('fillRect(');
+      const sourceOver = body.indexOf('globalCompositeOperation = "source-over"');
+      expect(sourceIn, `${name} enables source-in`).toBeGreaterThanOrEqual(0);
+      expect(whiteFill, `${name} selects white`).toBeGreaterThan(sourceIn);
+      expect(fillRect, `${name} paints the white fill`).toBeGreaterThan(whiteFill);
+      expect(sourceOver, `${name} restores source-over`).toBeGreaterThan(fillRect);
+    }
+    expect(script).not.toContain('fillStyle = "#ffffff"');
+    expect(darkScript).toContain('var ACCENT = [0.529, 0.918, 0.361];');
   });
 
   test('loops the sweep instead of playing once', () => {

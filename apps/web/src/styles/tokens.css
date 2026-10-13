@@ -39,6 +39,9 @@
   --text-soft: #848484;
   --text-faint: #bdbdbd;
 
+  /* Neutral primary-control hover, intentionally independent of the customizable accent. */
+  --primary-hover: #353535;
+
   --accent: #353535;
   --accent-contrast: #fafafa;
   --accent-strong: #202020;
@@ -147,6 +150,7 @@
      literals (chrome 150, viewer popovers 220, dialogs 1500…) are still
      ad-hoc; naming them is a separate job. Do not invent a third token here
      without deciding what tier it means. */
+  /* Theme-independent z-index scale. */
   --z-hint: 4000;
   --z-menu: 9000;
 
@@ -155,6 +159,7 @@
      base for cards/menus, md for medium containers, lg for large surfaces,
      pill for fully-rounded interactive. Off-scale values (7px, 9px, 10px
      literals) are drift; collapse them to the nearest token. */
+  /* Theme-independent radii, sizes, and motion scales. */
   --radius-none: 0px;
   --radius-small: 2px;
   --radius-medium: 4px;
@@ -206,6 +211,7 @@
   --selected: #353535;
   --selected-soft: color-mix(in srgb, #353535 12%, transparent);
 
+  /* Theme-independent font families. */
   --serif: "Albert Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
   --sans: "Albert Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
   --mono: "JiduMono Pro", ui-monospace, "SFMono-Regular", monospace;
@@ -225,6 +231,7 @@
 [data-theme="dark"] {
   color-scheme: dark;
   --bg: #202020;
+  --primary-hover: #ededed;
   --bg-app: #202020;
   --bg-panel: #353535;
   --bg-subtle: #494949;
@@ -235,6 +242,17 @@
   --bg-elevated: #353535;
   --glass-regular: rgba(53, 53, 53, 0.66);
   --glass-edge-highlight: color-mix(in srgb, #fff 14%, transparent);
+  --select-ink: #ededed;
+  --selected: #ededed;
+  --selected-soft: color-mix(in srgb, #ededed 16%, transparent);
+  --tag-prototype-ink: #9bb5ff;
+  --tag-prototype-tint: #25365f;
+  --tag-live-artifact-ink: #b5a5ff;
+  --tag-live-artifact-tint: #493b80;
+  --tag-web-clone-ink: #78cce8;
+  --tag-slide-ink: #ffbd72;
+  --tag-slide-tint: #6b421c;
+  --tag-media-ink: #75d7c2;
   --border: #5c5c5c;
   --border-strong: #848484;
   --border-selected: #a3a3a3;
@@ -281,6 +299,8 @@
 
   --code-header-bg: #1e1e20;
   --code-body-bg: #18181b;
+  /* Dark-mode check disc is light so it remains visible on dark surfaces. */
+  --tick-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='%23ededed'/%3E%3Cpath d='M17.46 9.46 11 15.91l-4.21-4.2 1.42-1.42L11 13.09l5.04-5.04z' fill='%2300ff08'/%3E%3C/svg%3E");
 }
 
 /* System mode: follow OS preference when no explicit data-theme is set. */
@@ -288,6 +308,7 @@
   html:not([data-theme]) {
     color-scheme: dark;
     --bg: #202020;
+    --primary-hover: #ededed;
     --bg-app: #202020;
     --bg-panel: #353535;
     --bg-subtle: #494949;
@@ -298,6 +319,17 @@
     --bg-elevated: #353535;
     --glass-regular: rgba(53, 53, 53, 0.66);
     --glass-edge-highlight: color-mix(in srgb, #fff 14%, transparent);
+    --select-ink: #ededed;
+    --selected: #ededed;
+    --selected-soft: color-mix(in srgb, #ededed 16%, transparent);
+    --tag-prototype-ink: #9bb5ff;
+    --tag-prototype-tint: #25365f;
+    --tag-live-artifact-ink: #b5a5ff;
+    --tag-live-artifact-tint: #493b80;
+    --tag-web-clone-ink: #78cce8;
+    --tag-slide-ink: #ffbd72;
+    --tag-slide-tint: #6b421c;
+    --tag-media-ink: #75d7c2;
     --border: #5c5c5c;
     --border-strong: #848484;
     --border-selected: #a3a3a3;
@@ -344,5 +376,7 @@
 
     --code-header-bg: #1e1e20;
     --code-body-bg: #18181b;
+    /* Dark-mode check disc is light so it remains visible on dark surfaces. */
+    --tick-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='%23ededed'/%3E%3Cpath d='M17.46 9.46 11 15.91l-4.21-4.2 1.42-1.42L11 13.09l5.04-5.04z' fill='%2300ff08'/%3E%3C/svg%3E");
   }
 }

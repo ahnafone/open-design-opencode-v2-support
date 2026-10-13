@@ -25,7 +25,7 @@
   /* Solid white bar, no hairline: nothing scrolls under this bar (the body
      scrolls inside itself), so a glass film served no function. Dark theme
      swaps to the panel surface below. */
-  background: #ffffff;
+  background: var(--bg);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   font-size: 13px;
@@ -301,12 +301,12 @@
 .viewer-action.primary {
   background: var(--accent);
   border: 1px solid var(--accent);
-  color: white;
+  color: var(--accent-contrast);
 }
 .viewer-action.primary:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  color: white;
+  color: var(--accent-contrast);
 }
 /* Primary actions support a subtle in-flight affordance via data-running. Keeps
    layout stable (unlike :disabled-only) so locale text width doesn't jump. */
@@ -1659,10 +1659,10 @@
   width: 42px;
   height: 42px;
   padding: 0;
-  border: 3px solid #fff;
+  border: 3px solid var(--border);
   border-radius: 50% 50% 50% 10px;
   background: #d96a46;
-  color: white;
+  color: var(--accent-contrast);
   font-size: 18px;
   font-weight: 700;
   line-height: 36px;
@@ -2042,7 +2042,7 @@
   padding: 0;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
-  background: var(--bg-panel, #fff);
+  background: var(--bg-panel, var(--bg));
   color: var(--text);
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
@@ -2100,7 +2100,7 @@
   width: 320px;
   height: 100%;
   max-width: 100%;
-  background: var(--bg-panel, #fff);
+  background: var(--bg-panel, var(--bg));
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -2118,7 +2118,7 @@
   gap: 10px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-panel, #fff);
+  background: var(--bg-panel, var(--bg));
 }
 .comment-side-title {
   display: inline-flex;
@@ -2198,7 +2198,7 @@
   padding: 12px 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg-panel, #fff);
+  background: var(--bg-panel, var(--bg));
   color: var(--text-muted);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   cursor: pointer;
@@ -2224,6 +2224,7 @@
   padding: 0 4px;
   border-radius: var(--radius-pill);
   background: #ff5a3c;
+  /* This fixed comment accent is theme-independent. */
   color: #fff;
   font-size: 12px;
   font-weight: 700;
@@ -2349,6 +2350,7 @@
   height: 20px;
   border-radius: 50%;
   background: #0a0a0a;
+  /* This dark avatar surface is theme-independent. */
   color: #fff;
   font-size: 12px;
   display: inline-flex;
@@ -2373,7 +2375,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  color: #fff;
+  color: var(--accent-contrast);
   flex-shrink: 0;
 }
 .comment-side-check.checked {
@@ -2438,7 +2440,7 @@
   align-items: center;
   gap: 4px;
   background: var(--comment-accent);
-  color: #fff;
+  color: var(--accent-contrast);
   border: 1px solid var(--comment-accent);
   border-radius: var(--radius-sm);
   padding: 5px 10px;
@@ -2448,7 +2450,7 @@
 .comment-side-selectbar .primary:disabled {
   background: color-mix(in srgb, var(--comment-accent) 45%, var(--bg-panel));
   border-color: color-mix(in srgb, var(--comment-accent) 45%, var(--border));
-  color: color-mix(in srgb, #fff 68%, var(--text-muted));
+  color: color-mix(in srgb, var(--accent-contrast) 68%, var(--text-muted));
   cursor: not-allowed;
 }
 .comment-side-selectbar .primary:hover:not(:disabled) {
@@ -2459,7 +2461,7 @@
   flex: 0 0 auto;
   border-top: 1px solid var(--border);
   padding: 10px 12px;
-  background: var(--bg-panel, #fff);
+  background: var(--bg-panel, var(--bg));
 }
 .comment-side-new-comment .comment-side-new-comment-shell {
   padding: 8px 10px 6px;
@@ -2517,6 +2519,7 @@
   border: 1px solid rgba(87, 149, 206, 0.5);
   border-radius: 16px;
   background: #0d3858;
+  /* This dark toast surface is theme-independent. */
   color: #fff;
   box-shadow: 0 12px 32px rgba(6, 22, 36, 0.28);
   font-size: 16px;

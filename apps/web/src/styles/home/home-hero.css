@@ -151,7 +151,7 @@
      strongest text reads the same token and is not meant to move with the
      headline. Dark mode keeps the token — #000 on a dark ground is
      unreadable — via the two overrides below. */
-  color: #000;
+  color: var(--text-strong);
   text-align: center;
 }
 [data-theme="dark"] .home-hero__title {
@@ -2344,7 +2344,7 @@
   width: 14px;
   height: 14px;
   border-radius: var(--radius-pill);
-  background: #fff;
+  background: var(--bg);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
   transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -2677,10 +2677,10 @@
   height: 12px;
 }
 .home-hero__model-option-icon--openai {
-  color: #111827;
+  color: var(--text-strong);
 }
 .home-hero__model-option-icon--dalle {
-  color: #111827;
+  color: var(--text-strong);
 }
 .home-hero__model-option-icon--seed {
   color: #3c8cff;
@@ -2689,19 +2689,19 @@
   color: #1A74FF;
 }
 .home-hero__model-option-icon--grok {
-  color: #111827;
+  color: var(--text-strong);
 }
 .home-hero__model-option-icon--google {
   color: #4285f4;
 }
 .home-hero__model-option-icon--router {
-  color: #353535;
+  color: var(--text);
 }
 .home-hero__model-option-icon--flux {
   color: #0f766e;
 }
 .home-hero__model-option-icon--elevenlabs {
-  color: #111827;
+  color: var(--text-strong);
 }
 .home-hero__model-option-icon--fishaudio {
   color: #7c6ee6;
@@ -2710,7 +2710,7 @@
   color: #e73562;
 }
 .home-hero__model-option-icon--suno {
-  color: #111827;
+  color: var(--text-strong);
 }
 .home-hero__model-option-icon--audio {
   color: #c05621;
@@ -2763,7 +2763,7 @@
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
 .home-hero__ratio-option-icon--square {
-  color: #6b7280;
+  color: var(--text-soft);
 }
 .home-hero__ratio-option-icon--wide {
   color: #d06943;
@@ -2775,7 +2775,7 @@
   color: #0f766e;
 }
 .home-hero__ratio-option-icon--portrait {
-  color: #353535;
+  color: var(--text);
 }
 .home-hero__ratio-option-icon--custom {
   color: var(--text-muted);
@@ -3012,14 +3012,14 @@
 .home-hero-confirm__primary {
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
 }
 .home-hero-confirm__secondary:hover {
   border-color: var(--border-strong);
 }
 .home-hero-confirm__primary:hover {
   background: var(--accent-strong);
-  color: white;
+  color: var(--accent-contrast);
 }
 
 .home-hero__prompt-examples {
@@ -3106,7 +3106,7 @@
   border-radius: 12px;
   /* Favicons are drawn for a light browser tab, so keep the tile light in both
      themes; the border keeps it defined on a light page. */
-  background: #fff;
+  background: var(--bg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-xs);
   overflow: hidden;
@@ -3120,7 +3120,7 @@
 .home-hero__site-monogram {
   font-size: 20px;
   font-weight: 700;
-  color: #111;
+  color: var(--text-strong);
   line-height: 1;
 }
 .home-hero__site-domain {

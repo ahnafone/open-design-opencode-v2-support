@@ -33,6 +33,7 @@ import type {
 } from "@open-design/host";
 
 import { renderDeckSlides } from "./deck-capture.js";
+import { persistAppearanceTheme, readPersistedAppearanceTheme, resolveAppearanceStatePath, type AppAppearanceTheme } from "./appearance-state.js";
 import { renderDeterministicFrames } from "./frame-capture.js";
 import { openFirstPartyMailto } from "./mailto-open.js";
 import { openValidatedDirectory } from "./open-path.js";
@@ -935,13 +936,18 @@ const MAC_WINDOW_CHROME_CSS = `
   }
 `;
 
-// Light-background startup splash shown while the web runtime boots. It runs the
+// Theme-aware startup splash shown while the web runtime boots. It runs the
 // Home hero's pixel-scan wordmark — the same shader, ported to plain WebGL and
 // inlined (logo art included) because the splash is up before any HTTP origin
 // exists (see `splash-pixel-scan.ts`). The sweep LOOPS: boots vary from two
 // seconds to a cold minute, and a clip that plays once leaves the rest of that
 // wait on a frozen frame.
-function createPendingHtml(): string {
+export function splashBackgroundColor(theme: "light" | "dark"): string {
+  return theme === "dark" ? "#202020" : "#f2f4f5";
+}
+
+export function createPendingHtml(theme: "light" | "dark"): string {
+  const dark = theme === "dark";
   const start = splashStagePayload("starting");
   const initialPct = Math.max(0, Math.min(100, Math.round((start.step / start.total) * 100)));
   return `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html>
@@ -952,7 +958,7 @@ function createPendingHtml(): string {
     <style>
       html,
       body {
-        background: #f2f4f5;
+        background: ${splashBackgroundColor(theme)};
         height: 100%;
         margin: 0;
         overflow: hidden;
@@ -965,7 +971,7 @@ function createPendingHtml(): string {
 ${SPLASH_PIXEL_SCAN_STYLE}
       .boot-stage {
         bottom: 56px;
-        color: #7a838a;
+        color: ${dark ? "#bdbdbd" : "#7a838a"};
         font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
         font-size: 13px;
         left: 0;
@@ -981,12 +987,12 @@ ${SPLASH_PIXEL_SCAN_STYLE}
         transition-duration: 140ms;
       }
       .boot-stage-step {
-        color: #9aa2a8;
+        color: ${dark ? "#848484" : "#9aa2a8"};
         font-variant-numeric: tabular-nums;
         margin-right: 7px;
       }
       .boot-progress {
-        background: rgba(122, 131, 138, 0.18);
+        background: ${dark ? "rgba(189, 189, 189, 0.18)" : "rgba(122, 131, 138, 0.18)"};
         border-radius: 999px;
         bottom: 84px;
         height: 3px;
@@ -997,7 +1003,7 @@ ${SPLASH_PIXEL_SCAN_STYLE}
         width: 200px;
       }
       .boot-progress-fill {
-        background: #7a838a;
+        background: ${dark ? "#bdbdbd" : "#7a838a"};
         border-radius: 999px;
         height: 100%;
         transition: width 320ms cubic-bezier(0.23, 1, 0.32, 1);
@@ -1023,7 +1029,7 @@ ${SPLASH_PIXEL_SCAN_MARKUP}
       <span class="boot-stage-step" id="boot-stage-step">${start.step}/${start.total}</span><span id="boot-stage-text">${start.label}</span><span class="boot-dots" aria-hidden="true"><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span>
     </div>
     <script>
-${splashPixelScanScript()}
+${splashPixelScanScript(theme)}
       // Accepts the structured { step, total, label } payload (and tolerates a
       // bare label string for back-compat). The step counter + progress bar give
       // a slow cold boot a sense of how far along it is; the bar only ever grows
@@ -1488,19 +1494,10 @@ export type SplashWindowHandle = {
 };
 
 /**
- * Pin Electron's native appearance to light.
- *
- * The app has one theme now, so `themeSource` is not a preference to sync — it
- * is a constant. Leaving it at Electron's `system` default lets a dark-mode OS
- * colour everything the web layer does not own: the macOS vibrancy glass
- * (`vibrancy: "under-window"`), native menus and dialogs, and the renderer's
- * own `prefers-color-scheme` before `data-theme` is stamped.
- *
- * Idempotent, so both the splash path and the `od:appearance:set-theme` handler
- * can call it.
+ * Apply the saved/user-selected theme to Electron's native chrome.
  */
-export function pinNativeAppearanceToLight(): void {
-  nativeTheme.themeSource = "light";
+export function applyNativeAppearance(theme: AppAppearanceTheme): void {
+  if (nativeTheme.themeSource !== theme) nativeTheme.themeSource = theme;
 }
 
 /**
@@ -1512,17 +1509,14 @@ export function pinNativeAppearanceToLight(): void {
  * + matching size so the reveal swap reads as a single window, never a flash.
  */
 export function createSplashWindow(): SplashWindowHandle {
-  // OpenDesign ships light-only (the theme setting was removed), so pin the
-  // native appearance before the first window exists. Electron defaults
-  // `themeSource` to `system`, which paints the macOS vibrancy glass and the
-  // native chrome dark on a dark-mode Mac — visible on the splash and again in
-  // the gap before the renderer's `od:appearance:set-theme` lands.
-  pinNativeAppearanceToLight();
+  const theme = readPersistedAppearanceTheme(resolveAppearanceStatePath());
+  applyNativeAppearance(theme);
+  const effectiveTheme = nativeTheme.shouldUseDarkColors ? "dark" : "light";
   // Stamp creation time at the instant the window appears (see SplashWindowHandle).
   const startedAt = Date.now();
   const splash = new BrowserWindow({
     autoHideMenuBar: true,
-    backgroundColor: "#f2f4f5",
+    backgroundColor: splashBackgroundColor(effectiveTheme),
     frame: false,
     height: 900,
     resizable: false,
@@ -1539,7 +1533,7 @@ export function createSplashWindow(): SplashWindowHandle {
   // page loads is deferred and replayed rather than dropped (see
   // `registerSplashStageTracking`).
   registerSplashStageTracking(splash);
-  void splash.loadURL(createPendingHtml());
+  void splash.loadURL(createPendingHtml(effectiveTheme));
   return { startedAt, window: splash };
 }
 
@@ -2616,14 +2610,15 @@ export async function createDesktopRuntime(options: DesktopRuntimeOptions): Prom
   ipcMain.on("od:appearance:set-theme", (event, theme: unknown) => {
     if (window.isDestroyed() || event.sender !== window.webContents) return;
     if (theme !== "light" && theme !== "dark" && theme !== "system") return;
-    // Pin the native appearance to the app theme. The macOS frosted window
+    // Apply the native appearance to the app theme. The macOS frosted window
     // (vibrancy: under-window) draws its glass in the SYSTEM appearance by
     // default, so a light app over a dark OS sat on dark glass and read as a
     // muddy gray (#94); forcing the native theme keeps the glass material in
     // step with the app's tokens. The host protocol still carries all three
-    // values as generic infrastructure, but the app ships light-only, so this
-    // is the same value `pinNativeAppearanceToLight` already set at startup.
-    nativeTheme.themeSource = theme;
+    // values as generic infrastructure. Persist it so the next splash matches
+    // before the web renderer is available.
+    applyNativeAppearance(theme);
+    persistAppearanceTheme(resolveAppearanceStatePath(), theme);
   });
 
   ipcMain.removeHandler('od:print-pdf');

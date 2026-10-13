@@ -454,7 +454,7 @@
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
@@ -611,7 +611,7 @@
   width: 14px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--bg);
   border-radius: 50%;
   transition: transform 0.2s;
 }
@@ -1887,14 +1887,14 @@
 .privacy-consent-action--primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent-contrast, #fff);
+  color: var(--accent-contrast, var(--accent-contrast));
   box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
 .privacy-consent-action--primary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 92%, #000 8%);
   border-color: color-mix(in srgb, var(--accent) 92%, #000 8%);
-  color: var(--accent-contrast, #fff);
+  color: var(--accent-contrast, var(--accent-contrast));
 }
 
 .privacy-consent-action.is-active {
@@ -1908,7 +1908,7 @@
   background: var(--accent);
   border-color: var(--accent);
   box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 24%, transparent);
-  color: var(--accent-contrast, #fff);
+  color: var(--accent-contrast, var(--accent-contrast));
 }
 
 /* First-run privacy consent banner. Cookie-consent-style: anchored to the

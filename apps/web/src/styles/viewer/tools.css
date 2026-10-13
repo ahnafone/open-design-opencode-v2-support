@@ -240,6 +240,7 @@
   border: 0;
   border-radius: var(--radius-pill);
   background: rgb(18 18 18 / 60%);
+  /* This dark glass surface stays theme-independent over artwork. */
   color: #fff;
   -webkit-backdrop-filter: blur(var(--glass-regular-blur)) saturate(140%);
   backdrop-filter: blur(var(--glass-regular-blur)) saturate(140%);
@@ -270,8 +271,8 @@
   margin-inline-start: -1px;
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .artifact-card .artifact-card-act { background: #353535; }
-  .artifact-card .artifact-card-act:hover { background: #202020; }
+  .artifact-card .artifact-card-act { background: rgb(18 18 18 / 60%); }
+  .artifact-card .artifact-card-act:hover { background: rgb(18 18 18 / 72%); }
 }
 /* D37 — NOT in the design sheet. Product asked for it on 2026-08-21: while a
    file is still being written the turn otherwise sits silent and then pops an
@@ -797,13 +798,13 @@
   gap: 6px;
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .viewer-action-export:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  color: white;
+  color: var(--accent-contrast);
 }
 @keyframes export-ready-nudge {
   0% {
@@ -1003,23 +1004,23 @@
 }
 .template-share-platform--reddit .template-share-platform__mark {
   background: #ff4500;
-  color: white;
+  color: #fff;
 }
 .template-share-platform--facebook .template-share-platform__mark {
   background: #1877f2;
-  color: white;
+  color: #fff;
 }
 .template-share-platform--linkedin .template-share-platform__mark {
   background: #0a66c2;
-  color: white;
+  color: #fff;
 }
 .template-share-platform--instagram .template-share-platform__mark {
   background: #e4405f;
-  color: white;
+  color: #fff;
 }
 .template-share-platform--xiaohongshu .template-share-platform__mark {
   background: #ff2442;
-  color: white;
+  color: #fff;
 }
 .share-menu-subitem {
   padding-left: 18px;

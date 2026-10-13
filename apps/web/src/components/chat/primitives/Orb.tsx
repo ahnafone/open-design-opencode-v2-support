@@ -85,9 +85,8 @@ export function Orb({ state, box = 20, label, className }: OrbProps): ReactEleme
     const frameOf = MODE_FRAMES[preset.mode];
     const ink = readInk(host);
     // 产品当前强制亮色(D20),但主题一旦解禁这里不用改:墨值到 alpha 的映射两边都成立
-    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-
     const paint = (t: number): void => {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
       const frame = frameOf(GEOMETRY_SIZE, t, preset.opts);
       const k = dpr * box / GEOMETRY_SIZE;
       ctx.setTransform(k, 0, 0, k, 0, 0);
@@ -146,10 +145,15 @@ export function Orb({ state, box = 20, label, className }: OrbProps): ReactEleme
     }
     document.addEventListener('visibilitychange', sync);
     reduce?.addEventListener('change', sync);
+    const themeObserver = new MutationObserver(() => {
+      if (frozen) paint(STILL_T);
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     return () => {
       stop();
       observer?.disconnect();
+      themeObserver.disconnect();
       document.removeEventListener('visibilitychange', sync);
       reduce?.removeEventListener('change', sync);
       canvas.remove();

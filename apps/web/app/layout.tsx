@@ -29,15 +29,12 @@ export const viewport: Viewport = {
  * Inline script that runs before React hydrates so the first paint already
  * carries the app's appearance — no flash of unstyled content.
  *
- * `data-theme` is pinned to `light` unconditionally, and deliberately OUTSIDE
- * the try/catch: OpenDesign ships light-only (product removed the theme
- * setting), and a stored `dark` / `system` from the old picker must never reach
- * the document. Every dark CSS rule is gated on the attribute being absent, so
- * a storage read that throws must still leave the attribute stamped.
+ * `data-theme` is resolved before hydration and deliberately stamped even if
+ * storage is unavailable, so every reader sees a concrete theme.
  * Keep the accent variable mix ratios in sync with `accentVars()` in
  * `src/state/appearance.ts`; this script cannot import application modules.
  */
-const themeInitScript = `(function(){document.documentElement.setAttribute('data-theme','light');try{var c=JSON.parse(localStorage.getItem('open-design:config')||'{}');var a=typeof c.accentColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.accentColor.trim())?c.accentColor.trim().toLowerCase():'#353535';if(c.configMigrationVersion!==3&&(a==='#87ea5c'||a==='#c96442'))a='#353535';var s=document.documentElement.style;s.setProperty('--accent',a);s.setProperty('--accent-strong','color-mix(in srgb, '+a+' 82%, var(--text-strong))');s.setProperty('--accent-soft','color-mix(in srgb, '+a+' 12%, var(--bg-subtle))');s.setProperty('--accent-tint','color-mix(in srgb, '+a+' 6%, var(--bg-panel))');s.setProperty('--accent-hover','color-mix(in srgb, '+a+' 86%, var(--text-strong))');}catch(e){}})();`;
+const themeInitScript = `(function(){var t='system',c={};try{c=JSON.parse(localStorage.getItem('open-design:config')||'{}');if(c.theme==='light'||c.theme==='dark'||c.theme==='system')t=c.theme}catch(e){}var m=typeof window.matchMedia==='function'&&window.matchMedia('(prefers-color-scheme: dark)').matches;var dark=t==='dark'||(t==='system'&&m);document.documentElement.setAttribute('data-theme',dark?'dark':'light');var a=typeof c.accentColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.accentColor.trim())?c.accentColor.trim().toLowerCase():null;if(c.configMigrationVersion!==3&&(a==='#87ea5c'||a==='#c96442'))a=null;if(!a||a==='#353535')a=dark?'#ededed':'#353535';var lum=function(color){var v=[0,2,4].map(function(i){var x=parseInt(color.slice(i+1,i+3),16)/255;return x<=0.04045?x/12.92:Math.pow((x+0.055)/1.055,2.4)});return .2126*v[0]+.7152*v[1]+.0722*v[2]};var ratio=function(x,y){var l1=lum(x),l2=lum(y);return (Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05)};var light='#fafafa',ink='#202020',best=ratio(light,a)>=ratio(ink,a)?light:ink;if(ratio(best,a)<4.5)best=ratio('#ffffff',a)>=ratio('#000000',a)?'#ffffff':'#000000';var s=document.documentElement.style;s.setProperty('--accent',a);s.setProperty('--accent-contrast',best);s.setProperty('--accent-strong','color-mix(in srgb, '+a+' 82%, var(--text-strong))');s.setProperty('--accent-soft','color-mix(in srgb, '+a+' 12%, var(--bg-subtle))');s.setProperty('--accent-tint','color-mix(in srgb, '+a+' 6%, var(--bg-panel))');s.setProperty('--accent-hover','color-mix(in srgb, '+a+' 86%, var(--text-strong))');})();`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

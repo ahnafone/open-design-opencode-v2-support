@@ -1192,7 +1192,7 @@
    white, so the letterbox band above and below reads as the same white stage
    rather than as a strip of tint. */
 .entry-nav-rail__recent-preview-plate.is-deck {
-  background: #fff;
+  background: var(--bg);
 }
 /* An HTML cover, rendered the way the projects grid renders one
    (`.recent-projects__thumb-iframe`): the document is laid out at a 1280px
@@ -1210,7 +1210,7 @@
   /* 1280 × 800 = the plate's own 16:10, so a plain page fills it exactly. */
   height: 800px;
   border: 0;
-  background: #fff;
+  background: var(--bg);
   pointer-events: none;
   transform-origin: 0 0;
   transform: scale(calc(100cqw / 1280px));
@@ -1879,6 +1879,14 @@
      topbar's vertical footprint (12px top + 32px chip). */
   --entry-topbar-h: 44px;
 }
+[data-theme="dark"] .entry-main--scroll {
+  --entry-content-surface: rgba(32, 32, 32, 0.85);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .entry-main--scroll {
+    --entry-content-surface: rgba(32, 32, 32, 0.85);
+  }
+}
 /* Rail collapsed: its track is 0-wide and its column is clipped away, so the
    left gutter has to come from this card instead. */
 .entry:not(.entry--rail-open) .entry-main--scroll {
@@ -1887,7 +1895,9 @@
 /* Material spec fallbacks: drop the translucency to a solid surface and take
    the rim down to the neutral border ladder. */
 @media (prefers-reduced-transparency: reduce) {
-  .entry-main--scroll {
+  .entry-main--scroll,
+  [data-theme="dark"] .entry-main--scroll,
+  html:not([data-theme]) .entry-main--scroll {
     --entry-content-surface: var(--bg);
     --entry-content-ring: color-mix(in srgb, var(--border) 66%, transparent);
     backdrop-filter: none;
@@ -1895,7 +1905,9 @@
   }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .entry-main--scroll {
+  .entry-main--scroll,
+  [data-theme="dark"] .entry-main--scroll,
+  html:not([data-theme]) .entry-main--scroll {
     --entry-content-surface: var(--bg);
     --entry-content-ring: color-mix(in srgb, var(--border) 66%, transparent);
   }
@@ -6484,7 +6496,7 @@
      would also swallow the unread dot that overflows the top-right corner. */
   border-radius: 8px;
   background: linear-gradient(135deg, #87ea5c, #0d5400);
-  color: #fff;
+  color: var(--accent-contrast);
   display: grid;
   place-items: center;
   font-size: 12px;
@@ -6858,8 +6870,8 @@
   padding: 5px 13px;
   border: 1px solid #d9d9d6;
   border-radius: 30px;
-  background: #fafafa;
-  color: #666;
+  background: var(--bg-panel);
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 600;
   transition: background-color 160ms cubic-bezier(0.23, 1, 0.32, 1),
@@ -6874,8 +6886,8 @@
 .entry-top-right-account-pill:not(.entry-top-right-account-pill--upgrade):has(
     .entry-top-right-credits[aria-expanded='true']
   ) {
-  background: #fff;
-  color: #202020;
+  background: var(--bg);
+  color: var(--text-strong);
 }
 /* Avatar-only trigger at the capsule's right end: a circle sized to the
    capsule's inner height — the name/email/plan all live in the hover menu. */
@@ -7132,7 +7144,7 @@
   height: 34px;
   border-radius: 8px;
   background: linear-gradient(135deg, #87ea5c, #0d5400);
-  color: #fff;
+  color: var(--accent-contrast);
   display: grid;
   place-items: center;
   font-size: 14px;
@@ -7290,8 +7302,8 @@
   padding: 0 10px;
   border-radius: var(--radius-pill);
   /* Light pill on the inverted black card (浅底深字 per 按钮规范). */
-  background: #fafafa;
-  color: #202020;
+  background: var(--bg-panel);
+  color: var(--text-strong);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -7300,8 +7312,8 @@
 /* :not(:disabled) lifts specificity above the global button:hover reset. */
 .entry-nav-rail__menu-credits-upgrade:hover:not(:disabled),
 .entry-nav-rail__menu-credits-upgrade:focus-visible {
-  background: #fff;
-  color: #202020;
+  background: var(--bg);
+  color: var(--text-strong);
 }
 .entry-nav-rail__menu-credits-row {
   display: flex;
@@ -7638,8 +7650,8 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
 }
 
 [data-testid="design-systems-tab"] > aside div:has(> [data-testid^="design-system-card-"][aria-pressed="true"]) {
-  border-color: #dbdbdb;
-  background: #ffffff;
+  border-color: var(--border);
+  background: var(--bg);
 }
 
 [data-testid="design-systems-tab"] > aside div:has(> [data-testid^="design-system-card-"]):hover > [data-testid^="design-system-card-"],
@@ -8045,8 +8057,8 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
   display: grid;
   place-items: center;
   border-radius: var(--radius-large, 8px);
-  background: #1f1f1f;
-  color: #fff;
+  background: var(--bg-panel);
+  color: var(--text-strong);
   font-weight: 700;
   font-size: 16px;
 }
@@ -8237,7 +8249,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
 .entry-invite__btn.is-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
 }
 /* Re-assert the accent fill + white label on hover — the global
    `button:hover` rule in primitives.css otherwise repaints the background to
@@ -8245,7 +8257,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
 .entry-invite__btn.is-primary:hover:not(:disabled) {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
   filter: brightness(1.05);
 }
 
@@ -8587,7 +8599,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
   place-items: center;
   cursor: pointer;
   overflow: hidden;
-  color: #fff;
+  color: var(--accent-contrast);
 }
 .create-team__logo-initial {
   font-size: 24px;
@@ -8607,7 +8619,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
   display: grid;
   place-items: center;
   background: rgba(0, 0, 0, 0.55);
-  color: #fff;
+  color: var(--accent-contrast);
 }
 .create-team__colors {
   display: flex;
@@ -8642,7 +8654,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
   padding: 11px 20px;
   border-radius: var(--radius-pill);
   background: #10b981;
-  color: #fff;
+  color: var(--accent-contrast);
   font-size: 14px;
   font-weight: 600;
   box-shadow: 0 8px 28px rgba(16, 185, 129, 0.4);
@@ -8700,7 +8712,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
   place-items: center;
   border-radius: 12px;
   background: linear-gradient(150deg, #848484 0%, #202020 100%);
-  color: #fff;
+  color: var(--accent-contrast);
 }
 .upgrade-team__title {
   margin: 0;
@@ -8825,7 +8837,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
   padding: 2px 7px;
   border-radius: 999px;
   background: color-mix(in srgb, #848484 14%, transparent);
-  color: #353535;
+  color: var(--text);
   font-size: 12px;
   font-weight: 600;
 }
@@ -8880,7 +8892,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
 }
 .upgrade-team__benefits svg {
   flex: 0 0 auto;
-  color: #353535;
+  color: var(--text);
 }
 .upgrade-team__foot {
   display: flex;
@@ -9048,7 +9060,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
   border: 0;
   border-radius: 999px;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.02em;
@@ -9213,7 +9225,7 @@ button.entry-nav-rail__menu-credits-row:active:not(:disabled) {
   margin-left: -20px;
   border-radius: 50%;
   border: 3px solid #fff;
-  background: #fff;
+  background: var(--bg);
   overflow: hidden;
   display: grid;
   place-items: center;

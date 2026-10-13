@@ -353,7 +353,7 @@
 }
 .recent-projects__thumb-iframe {
   pointer-events: none;
-  background: #fff;
+  background: var(--bg);
   /* Render the page at a desktop design width, then scale it down to the
    * card width via a container query so non-responsive galleries don't
    * collapse at the narrow card size. 1280x720 keeps the 16/9 thumb ratio,
@@ -379,7 +379,7 @@
 }
 .recent-projects__deck-frame {
   overflow: hidden;
-  background: #fff;
+  background: var(--bg);
 }
 .recent-projects__deck-iframe {
   width: 1280px;
@@ -1359,6 +1359,7 @@
   height: 16px;
   border-radius: var(--radius-pill);
   background: #1a1917;
+  /* Dark owner avatar surface is theme-independent. */
   color: #fff;
   display: inline-flex;
   align-items: center;

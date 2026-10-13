@@ -7,6 +7,7 @@ const ACCENT_VARS = [
   '--accent-soft',
   '--accent-tint',
   '--accent-hover',
+  '--accent-contrast',
 ] as const;
 
 export const DEFAULT_ACCENT_COLOR = '#353535';
@@ -32,9 +33,29 @@ export function resolveAccentColor(value: unknown): string {
   return normalizeAccentColor(value) ?? DEFAULT_ACCENT_COLOR;
 }
 
+function luminance(color: string): number {
+  const channels = [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16) / 255);
+  return channels.reduce((sum, channel, index) => {
+    const linear = channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    return sum + linear * [0.2126, 0.7152, 0.0722][index]!;
+  }, 0);
+}
+
+function contrastRatio(first: string, second: string): number {
+  const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return (lighter! + 0.05) / (darker! + 0.05);
+}
+
 function accentVars(accentColor: string): Record<(typeof ACCENT_VARS)[number], string> {
+  const lightInk = '#fafafa';
+  const darkInk = '#202020';
+  const bestStandardInk = contrastRatio(lightInk, accentColor) >= contrastRatio(darkInk, accentColor) ? lightInk : darkInk;
+  const contrast = contrastRatio(bestStandardInk, accentColor) >= 4.5
+    ? bestStandardInk
+    : contrastRatio('#ffffff', accentColor) >= contrastRatio('#000000', accentColor) ? '#ffffff' : '#000000';
   return {
     '--accent': accentColor,
+    '--accent-contrast': contrast,
     // Keep these mix ratios in sync with the pre-hydration script in app/layout.tsx.
     '--accent-strong': `color-mix(in srgb, ${accentColor} 82%, var(--text-strong))`,
     '--accent-soft': `color-mix(in srgb, ${accentColor} 12%, var(--bg-subtle))`,
@@ -43,49 +64,44 @@ function accentVars(accentColor: string): Record<(typeof ACCENT_VARS)[number], s
   };
 }
 
-/**
- * The one appearance OpenDesign ships.
- *
- * Product removed the theme setting: the workspace surfaces have no dark
- * tokens, so a dark app is a broken app. `data-theme` is therefore a constant
- * rather than a preference — and it must always be PRESENT, not merely
- * non-dark. Every dark rule in the app is gated on the attribute being absent
- * (`html:not([data-theme])` in CSS) or falls back to `prefers-color-scheme`
- * when the attribute is missing (`shiki`, `ConnectorLogo`, `SketchEditor`,
- * `TerminalViewer`, `connectorBrandColor`, `MentionNode`). Stamping it
- * unconditionally is what keeps a dark OS from leaking through.
- */
-export const FORCED_APP_THEME = 'light' as const;
-
-/**
- * Coerce any persisted theme to the only one that still exists.
- *
- * Changing the default alone cannot fix an existing install: every user who
- * ever opened the old picker has `'dark'` — or `'system'`, which resolves dark
- * on a dark OS — written to localStorage, and a stored value does not move
- * when the default does. Config reads funnel through here so those installs
- * come back light.
- */
+/** Return the user's valid stored selection, defaulting invalid data to system. */
 export function resolveAppTheme(persisted?: AppTheme | null): AppTheme {
-  return persisted === FORCED_APP_THEME ? persisted : FORCED_APP_THEME;
+  return persisted === 'light' || persisted === 'dark' || persisted === 'system'
+    ? persisted
+    : 'system';
+}
+
+export function resolveConcreteAppTheme(
+  theme: AppTheme,
+  prefersDark = typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches,
+): 'light' | 'dark' {
+  return theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme;
 }
 
 export function applyAppearanceToDocument({
+  theme = 'system',
   accentColor,
 }: {
+  theme?: AppTheme;
   accentColor?: string;
 }): void {
   const root = document.documentElement;
-  root.setAttribute('data-theme', FORCED_APP_THEME);
+  const concreteTheme = resolveConcreteAppTheme(theme);
+  root.setAttribute('data-theme', concreteTheme);
   // Desktop shell: keep the native window appearance (the macOS vibrancy
   // glass material) in step with the app theme. Without this the glass
   // follows the OS appearance, so the light app over a dark OS sat on dark
   // glass and read as a muddy gray (#94). Feature-detected — browsers and
   // older host builds have no appearance capability.
-  getOpenDesignHost()?.appearance?.setTheme(FORCED_APP_THEME);
+  getOpenDesignHost()?.appearance?.setTheme(theme);
 
-  const normalized = resolveAccentColor(accentColor);
-  const vars = accentVars(normalized);
+  const normalized = normalizeAccentColor(accentColor);
+  const baseAccent = normalized && normalized !== DEFAULT_ACCENT_COLOR
+    ? normalized
+    : concreteTheme === 'dark' ? '#ededed' : DEFAULT_ACCENT_COLOR;
+  const vars = accentVars(baseAccent);
   for (const name of ACCENT_VARS) {
     root.style.setProperty(name, vars[name]);
   }

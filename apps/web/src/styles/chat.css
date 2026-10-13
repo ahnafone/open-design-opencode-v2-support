@@ -857,7 +857,7 @@
 }
 .msg-mode-chip--chat {
   border-color: color-mix(in srgb, var(--text-soft) 22%, var(--border));
-  background: color-mix(in srgb, var(--bg-subtle) 78%, #fff);
+  background: color-mix(in srgb, var(--bg-subtle) 78%, var(--bg));
   color: var(--text-muted);
 }
 .msg-plugin-context {
@@ -1506,7 +1506,7 @@ body:has(.manual-edit-workspace) .chat-composer-fixed-layer {
      rather than a token change: `--text` is the app's default body ink and is
      read app-wide — only what the user TYPES moves here. Dark mode keeps the
      token; a near-black ink is unreadable on #202020. */
-  color: #353535;
+  color: var(--accent);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -3365,7 +3365,7 @@ body:has(.manual-edit-workspace) .chat-composer-fixed-layer {
      (`components/chat/ChatRoot.module.css`)有 --chat-anim-ink,但那是 CSS Module
      的作用域,全局 chat.css 够不着,所以在这里落一份同值的局部变量。
      亮暗两个作用域都写(见 components/chat/AGENTS.md §2)。 */
-  --composer-att-ink: #353535;
+  --composer-att-ink: var(--accent);
   /* 翻页箭头那段渐变要压住被切开的半张卡,所以它的颜色必须**等于托盘的底色**。
      稿子说「两处底色相同,真出现第三种底时改这一个变量」—— 这里就是那第三种底:
      已发送那一行落在白底的消息里(--bg),而托盘落在 .composer-shell 上,
@@ -3374,8 +3374,8 @@ body:has(.manual-edit-workspace) .chat-composer-fixed-layer {
   --att-fade: color-mix(in srgb, #000 3%, var(--bg));
 }
 [data-theme='dark'] .composer-att {
-  --composer-att-ink: #dbdbdb;
-  --att-fade: color-mix(in srgb, #fff 6%, var(--bg));
+  --composer-att-ink: var(--accent);
+  --att-fade: color-mix(in srgb, var(--text-strong) 6%, var(--bg));
 }
 .composer-att::-webkit-scrollbar {
   display: none;

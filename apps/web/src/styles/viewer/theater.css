@@ -694,7 +694,8 @@
   left: 50%;
   transform: translateX(-50%);
   background: rgba(17, 24, 39, 0.95);
-  color: white;
+  /* This dark tooltip surface is theme-independent. */
+  color: #fff;
   font-size: 12px;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
@@ -722,7 +723,8 @@
   left: 50%;
   transform: translateX(-50%);
   background: rgba(17, 24, 39, 0.95);
-  color: white;
+  /* This dark tooltip surface is theme-independent. */
+  color: #fff;
   font-size: 12px;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
@@ -893,7 +895,7 @@
   border-color: color-mix(in srgb, var(--accent) 62%, transparent);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent);
-  color: #fff;
+  color: var(--accent-contrast);
 }
 .deck-thumbnail-list {
   height: 100%;
@@ -949,7 +951,7 @@
   color: rgba(255, 255, 255, 0.82);
 }
 .deck-thumbnail-button.active {
-  color: #fff;
+  color: var(--accent-contrast);
 }
 .deck-thumbnail-number {
   display: flex;
@@ -1119,6 +1121,7 @@
   color: rgba(255, 255, 255, 0.44);
 }
 .deck-floating-count strong {
+  /* Floating deck controls sit on a theme-independent dark surface. */
   color: #fff;
 }
 .deck-floating-divider {
@@ -1142,6 +1145,7 @@
 }
 .deck-floating-reset:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.09);
+  /* Floating deck controls sit on a theme-independent dark surface. */
   color: #fff;
 }
 .deck-floating-reset kbd {
@@ -1505,7 +1509,7 @@
   justify-content: center;
   border-radius: var(--radius-pill);
   background: var(--pet-accent);
-  color: white;
+  color: var(--accent-contrast);
   border: 2px solid var(--bg);
   font-size: 12px;
   font-weight: 700;

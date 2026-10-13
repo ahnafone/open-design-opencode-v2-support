@@ -339,7 +339,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.72);
+  color: #fafafa;
   background: rgba(0, 0, 0, 0.42);
   border: 1px solid rgba(255, 255, 255, 0.18);
   opacity: 0.55;
@@ -352,7 +352,7 @@
 .present-overlay .present-exit-btn:hover,
 .present-overlay .present-exit-btn:focus-visible {
   opacity: 1;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.72);
   background: rgba(0, 0, 0, 0.68);
 }
 .present-overlay .present-exit-btn:focus-visible {
@@ -365,7 +365,7 @@
   width: 100%;
   height: 100%;
   border: none;
-  background: white;
+  background: var(--bg);
 }
 /* Momentary "Press Esc to exit" confirmation, centered near the top of the
    presented stage. Timed to unmount at ~3.6s from the host, so the keyframe
@@ -475,7 +475,7 @@
 .preview-actions button { padding: 4px 10px; font-size: 12px; }
 .preview-body { flex: 1; min-height: 0; position: relative; }
 .preview-body iframe {
-  width: 100%; height: 100%; border: none; background: white;
+  width: 100%; height: 100%; border: none; background: var(--accent-contrast);
 }
 .preview-empty {
   display: flex; align-items: center; justify-content: center;
@@ -971,7 +971,7 @@
 }
 /* 稿子 `.opt` 的全文(`729fa43ce7:components.css:1420`,逐条对过):
    display:flex; align-items:flex-start; gap:8px; width:100%; padding:8px 11px;
-   border:0; border-radius:var(--radius); background:transparent; text-align:left;
+   border: 0; border-radius:var(--radius); background:transparent; text-align:left;
    font-size:var(--t-body); line-height:var(--lh-row); color:var(--text);
 
    ⚠️ 字号是 **13**(`--t-body`),不是 12。上一版基线(`361b78253e`)这里写的是
@@ -2219,7 +2219,7 @@ legend.qf-color-legend {
   pointer-events: none;
 }
 /* 稿子 `.vnav-b { display:grid; place-items:center; width:26px; height:26px;
-   border-radius:50%; background: var(--bg); border:1px solid var(--border);
+   border-radius: 50%; background: var(--bg); border:1px solid var(--border);
    color: var(--text-muted) }` */
 .qf-visual-picker .qf-visual-nav-button {
   display: grid;
@@ -2423,8 +2423,9 @@ legend.qf-color-legend {
   font-variant-numeric: tabular-nums;
 }
 .qf-visual-preview {
+  /* Authored preview artwork uses theme-independent light surfaces and ink. */
   --visual-bg: #eef0ed;
-  --visual-surface: #ffffff;
+  --visual-surface: #fff;
   --visual-ink: #20231f;
   --visual-muted: #9da39a;
   --visual-accent: #58695b;
@@ -2464,7 +2465,7 @@ legend.qf-color-legend {
 }
 .qf-visual-preview[data-style='minimal'] {
   --visual-bg: #e9edf1;
-  --visual-surface: #ffffff;
+  --visual-surface: #fff;
   --visual-ink: #111820;
   --visual-muted: #aab4bd;
   --visual-accent: #2267e8;
@@ -2492,7 +2493,7 @@ legend.qf-color-legend {
 }
 .qf-visual-preview[data-style='brutalist'] {
   --visual-bg: #efefea;
-  --visual-surface: #ffffff;
+  --visual-surface: #fff;
   --visual-ink: #111111;
   --visual-muted: #919191;
   --visual-accent: #ff3c00;
@@ -3038,7 +3039,7 @@ legend.qf-color-legend {
   justify-content: center;
   gap: 8px;
   border: 1px solid transparent;
-  color: #fff;
+  color: var(--accent-contrast);
   background: var(--accent);
   box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 34%, transparent);
 }
@@ -3220,7 +3221,7 @@ legend.qf-color-legend {
 .ds-modal-stage {
   flex: 1;
   min-height: 0;
-  background: white;
+  background: var(--bg);
   position: relative;
   display: flex;
   align-items: stretch;
@@ -3230,14 +3231,14 @@ legend.qf-color-legend {
   min-width: 0;
   position: relative;
   overflow: hidden;
-  background: white;
+  background: var(--bg);
 }
 .ds-modal-stage-iframe-scaler {
   position: absolute;
   top: 0;
   left: 0;
   transform-origin: top left;
-  background: white;
+  background: var(--bg);
   /* Prevent the GPU layer from blurring the scaled iframe on Retina. */
   will-change: transform;
 }
@@ -3246,7 +3247,7 @@ legend.qf-color-legend {
   height: 100%;
   border: none;
   display: block;
-  background: white;
+  background: var(--bg);
 }
 .ds-modal-stage.has-sidebar .ds-modal-stage-iframe {
   flex: 1 1 60%;
@@ -3424,7 +3425,7 @@ legend.qf-color-legend {
   object-fit: contain;
   border-radius: var(--radius);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
-  background: white;
+  background: var(--bg);
 }
 .plugin-media-stage__video {
   width: auto;
@@ -3594,7 +3595,7 @@ legend.qf-color-legend {
   border-radius: var(--radius-pill);
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -3743,7 +3744,7 @@ legend.qf-color-legend {
 .design-spec-line.is-h4 { color: #16a34a; font-weight: 600; }
 .design-spec-line.is-quote { color: #6b7280; font-style: italic; }
 .design-spec-line.is-list { color: var(--text); }
-.design-spec-line.is-table { color: #353535; }
+.design-spec-line.is-table { color: var(--text); }
 .design-spec-line.is-fence { color: #dc2626; }
 .design-spec-line.is-blank { color: var(--text-muted); }
 .md-tk-bold { font-weight: 700; color: var(--text); }
@@ -3962,7 +3963,7 @@ button.filter-pill:hover:not(:disabled) .filter-pill-count,
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: white;
+  color: #fff;
   background: rgba(28, 27, 26, 0.78);
   border-radius: var(--radius-pill);
   opacity: 0;
@@ -4132,7 +4133,7 @@ body.entry-resizing { cursor: col-resize; user-select: none; }
   font-weight: 600;
   letter-spacing: 0;
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast);
   border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;

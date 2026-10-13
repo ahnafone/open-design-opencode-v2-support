@@ -41,8 +41,8 @@ button.primary {
   color: var(--bg);
 }
 button.primary:hover:not(:disabled) {
-  background: #353535;
-  border-color: #353535;
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 button.primary:active:not(:disabled) {
   background: var(--text);
@@ -158,6 +158,19 @@ input:focus, textarea:focus, select:focus {
 .entry-side select:focus {
   border-color: var(--text);
   box-shadow: 0 0 0 3px rgba(28, 27, 26, 0.08);
+}
+/* A pale focus halo remains visible against dark entry fields. */
+[data-theme='dark'] .entry-side input:focus,
+[data-theme='dark'] .entry-side textarea:focus,
+[data-theme='dark'] .entry-side select:focus {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .entry-side input:focus,
+  html:not([data-theme]) .entry-side textarea:focus,
+  html:not([data-theme]) .entry-side select:focus {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+  }
 }
 /* Native <select> on macOS uses its own intrinsic min-height that ends up
    shorter than <input> at the same `padding: 7px 10px` rule above, so any

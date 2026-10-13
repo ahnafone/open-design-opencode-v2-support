@@ -6,6 +6,8 @@ import {
   applyAppearanceToDocument,
   normalizeAccentColor,
   resolveAccentColor,
+  resolveAppTheme,
+  resolveConcreteAppTheme,
 } from '../../src/state/appearance';
 
 describe('normalizeAccentColor', () => {
@@ -35,14 +37,33 @@ describe('applyAppearanceToDocument', () => {
     document.documentElement.style.removeProperty('--accent-soft');
     document.documentElement.style.removeProperty('--accent-tint');
     document.documentElement.style.removeProperty('--accent-hover');
+    document.documentElement.style.removeProperty('--accent-contrast');
   });
 
-  it('applies the forced light theme and accent variables to the root element', () => {
+  it('applies the selected theme and accent variables to the root element', () => {
     applyAppearanceToDocument({ accentColor: '#4F46E5' });
 
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#4f46e5');
     expect(document.documentElement.style.getPropertyValue('--accent-hover')).toContain('#4f46e5');
+  });
+
+  it('preserves the default light appearance and resolves the dark default accent', () => {
+    applyAppearanceToDocument({ theme: 'light' });
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#353535');
+    expect(document.documentElement.style.getPropertyValue('--accent-soft')).toContain('#353535');
+    expect(document.documentElement.style.getPropertyValue('--accent-contrast')).toBe('#fafafa');
+
+    applyAppearanceToDocument({ theme: 'dark' });
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#ededed');
+    expect(document.documentElement.style.getPropertyValue('--accent-contrast')).toBe('#202020');
+  });
+
+  it('derives readable contrast ink for custom light and dark accents', () => {
+    applyAppearanceToDocument({ accentColor: '#ffba12' });
+    expect(document.documentElement.style.getPropertyValue('--accent-contrast')).toBe('#202020');
+    applyAppearanceToDocument({ accentColor: '#202020' });
+    expect(document.documentElement.style.getPropertyValue('--accent-contrast')).toBe('#fafafa');
   });
 
   it('does not apply appearance colors to global background variables', () => {
@@ -58,12 +79,12 @@ describe('applyAppearanceToDocument', () => {
     document.documentElement.style.removeProperty('--bg-app');
   });
 
-  it('applies accent variables while forcing a stale dark theme back to light', () => {
+  it('applies accent variables while selecting dark theme', () => {
     document.documentElement.setAttribute('data-theme', 'dark');
 
-    applyAppearanceToDocument({ accentColor: '#10B981' });
+    applyAppearanceToDocument({ theme: 'dark', accentColor: '#10B981' });
 
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#10b981');
     expect(document.documentElement.style.getPropertyValue('--accent-strong')).toContain('#10b981');
     expect(document.documentElement.style.getPropertyValue('--accent-soft')).toContain('#10b981');
@@ -90,6 +111,19 @@ describe('applyAppearanceToDocument', () => {
     applyAppearanceToDocument({ accentColor: 'not-a-color' });
 
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    expect(document.documentElement.style.getPropertyValue('--accent')).toBe(DEFAULT_ACCENT_COLOR);
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#353535');
+  });
+});
+
+describe('theme resolution', () => {
+  it('preserves valid choices and falls back to system for invalid values', () => {
+    expect(resolveAppTheme('light')).toBe('light');
+    expect(resolveAppTheme('dark')).toBe('dark');
+    expect(resolveAppTheme('system')).toBe('system');
+    expect(resolveAppTheme('other' as never)).toBe('system');
+  });
+
+  it('resolves system safely when matchMedia is unavailable', () => {
+    expect(resolveConcreteAppTheme('system')).toBe('light');
   });
 });

@@ -71,7 +71,7 @@ interface Props {
 }
 
 export function EntrySettingsMenu({
-  config,
+  config: _config,
   onOpenSettings,
   onTrackTriggerClick,
   trackingPageName,

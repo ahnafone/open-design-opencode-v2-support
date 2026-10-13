@@ -154,7 +154,7 @@
 
 .plugin-marketplace__switch button.is-active {
   border-color: transparent;
-  background: #fff;
+  background: var(--bg);
   color: var(--text-strong);
   box-shadow: 0 1px 2px color-mix(in srgb, #000 7%, transparent);
 }
@@ -164,7 +164,7 @@
 .plugin-marketplace__filters button.is-active,
 .plugin-marketplace__category-tags button.is-active {
   border-color: transparent;
-  background: #fff;
+  background: var(--bg);
   color: var(--text-strong);
   box-shadow: 0 1px 2px color-mix(in srgb, #000 7%, transparent);
 }
@@ -260,13 +260,14 @@
 }
 
 .plugin-marketplace__icon--github {
+  /* Fixed light ink on the theme-independent dark GitHub brand ground. */
   background: #111;
   color: #fff;
 }
 
 .plugin-marketplace__icon--notion {
-  background: #fff;
-  color: #111;
+  background: var(--bg);
+  color: var(--text-strong);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 18px;
   border-color: color-mix(in srgb, #000 13%, var(--border));
@@ -278,7 +279,7 @@
   gap: 1px;
   align-content: center;
   justify-content: center;
-  background: #fff;
+  background: var(--bg);
 }
 
 .plugin-marketplace__icon--figma i {
@@ -297,7 +298,7 @@
 .plugin-marketplace__icon--drive {
   position: relative;
   overflow: hidden;
-  background: #fff;
+  background: var(--bg);
 }
 
 .plugin-marketplace__icon--drive i {
@@ -328,7 +329,7 @@
   grid-template-columns: repeat(2, 9px);
   grid-template-rows: repeat(2, 9px);
   gap: 3px;
-  background: #fff;
+  background: var(--bg);
 }
 
 .plugin-marketplace__icon--slack i {
@@ -735,7 +736,7 @@
 
 .plugin-marketplace__create-tabs button.is-active {
   border-color: transparent;
-  background: #fff;
+  background: var(--bg);
   color: var(--text-strong);
   box-shadow: 0 1px 2px color-mix(in srgb, #000 7%, transparent);
 }
@@ -1917,6 +1918,7 @@
 
 .community-template-thumb--image .community-template-thumb__paper,
 .community-template-thumb--video .community-template-thumb__paper {
+  /* Image/video artwork is a theme-independent dark surface. */
   background: linear-gradient(180deg, color-mix(in srgb, var(--template-accent) 35%, #111), #111);
   color: #fff;
 }
@@ -2054,7 +2056,7 @@ html:has(.workspace-shell--desktop[data-host-platform='darwin']) .community-temp
   width: 100%;
   height: 100%;
   border: 0;
-  background: #fff;
+  background: var(--bg);
 }
 
 @media (max-width: 980px) {

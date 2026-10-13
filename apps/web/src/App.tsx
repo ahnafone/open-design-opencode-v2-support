@@ -1948,8 +1948,17 @@ function AppInner() {
   // useLayoutEffect (vs useEffect) fires before the browser paints, so no
   // 1-frame flash. Safe here because the component tree is ssr:false.
   useLayoutEffect(() => {
-    applyAppearanceToDocument({ accentColor: config.accentColor });
-  }, [config.accentColor]);
+    applyAppearanceToDocument({ theme: config.theme, accentColor: config.accentColor });
+  }, [config.theme, config.accentColor]);
+
+  useEffect(() => {
+    if (config.theme !== 'system' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () =>
+      applyAppearanceToDocument({ theme: config.theme, accentColor: config.accentColor });
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, [config.theme, config.accentColor]);
 
   // Tell the daemon what the user is currently looking at, so the MCP
   // server can surface it as `get_active_context` to a coding agent in
