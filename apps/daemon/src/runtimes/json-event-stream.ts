@@ -238,15 +238,23 @@ function handleOpenCodeEvent(obj: unknown, onEvent: StreamEventHandler, state: P
     return true;
   }
 
-  if (obj.type === 'tool_use' && typeof part.tool === 'string' && typeof part.callID === 'string') {
-    state.openCodeToolEvents.complete(part.callID);
+  if (obj.type === 'tool_use' && typeof part.tool === 'string') {
+    // v1 stamps the tool call as `part.callID`; v2 renamed it to `part.id`.
+    const callId =
+      typeof part.callID === 'string' && part.callID.length > 0
+        ? part.callID
+        : typeof part.id === 'string' && part.id.length > 0
+          ? part.id
+          : null;
+    if (!callId) return false;
+    state.openCodeToolEvents.complete(callId);
     const statePart = isRecord(part.state) ? part.state : null;
-    const key = `${obj.sessionID || 'session'}:${part.callID}`;
+    const key = `${obj.sessionID || 'session'}:${callId}`;
     if (!state.openCodeToolUses.has(key)) {
       state.openCodeToolUses.add(key);
       onEvent({
         type: 'tool_use',
-        id: part.callID,
+        id: callId,
         name: part.tool,
         input: safeParseJson(statePart?.input) ?? statePart?.input ?? null,
       });
@@ -256,7 +264,7 @@ function handleOpenCodeEvent(obj: unknown, onEvent: StreamEventHandler, state: P
       state.openCodeToolResults.add(key);
       onEvent({
         type: 'tool_result',
-        toolUseId: part.callID,
+        toolUseId: callId,
         content: result.content,
         isError: result.isError,
       });

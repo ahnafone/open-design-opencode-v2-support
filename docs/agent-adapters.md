@@ -214,6 +214,13 @@ the active-run staging implementation is in
   stdin and the selected provider/model passed through OpenCode's model
   syntax. The profile shares the OpenCode JSON-event parser and external MCP
   injection path.
+- Detected OpenCode v2 (`2.x`) adds `--standalone` so the per-run provider/
+  MCP configuration reaches the run. v2 otherwise delegates `opencode run` to a
+  persistent background service that reads its configuration once, so the
+  `OPENCODE_CONFIG_CONTENT` carrying the BYOK provider overlay is ignored by a
+  later run; `--standalone` boots a dedicated config-reading process per run.
+  v1 has no such service or flag, and an unknown/missing version keeps the prior
+  argv.
 - There is no daemon-owned fallback loop or daemon implementation of
   `Read`/`Write`/`Edit` tools, and this profile is not an automatic recovery
   target for failed local agents.
@@ -281,15 +288,33 @@ the active-run staging implementation is in
 
 ### 5.6 OpenCode
 
-- OpenCode runs as `opencode run --format json` with the prompt on stdin.
-  Newer builds that advertise `--dangerously-skip-permissions` from
-  `opencode run --help` receive that flag; older builds keep the compatible
-  argv without it.
-- The adapter discovers models with `opencode models`, parses structured JSON
-  events, and captures OpenCode's `sessionID`. Follow-up turns continue the
-  native session with `-s <session-id>`.
+- OpenCode runs as `opencode run --format json` with the prompt on stdin. The
+  adapter supports both CLI families and picks the argv the installed
+  `--version` accepts (`OpenCodeCliFamily`):
+  - **v1 (`1.x`)** — workspace pinned with `--dir <project>`; reasoning variants
+    ride the separate `--variant <id>` flag; models come from
+    `opencode models --verbose`.
+  - **v2 (`2.x`)** — `--dir` and `--variant` were removed, so the child process
+    cwd is the workspace and a variant folds into the model id
+    (`provider/model#variant`); `models --verbose` is gone too, so the list is
+    retried without it (no variant catalog).
+  Permission bypass is capability-gated from `opencode run --help`:
+  `--dangerously-skip-permissions` on v1, `--auto` on v2. Without one of these a
+  non-interactive v2 run has every tool call rejected by its permission gate.
+- The adapter parses structured JSON events and captures OpenCode's `sessionID`.
+  v1 stamps a tool call as `part.callID`; v2 renamed it to `part.id`. Follow-up
+  turns continue the native session with `-s <session-id>`.
+- Child evidence reads `opencode export <id> --sanitize --pure` on v1 and
+  `opencode session export <id> --sanitize` on v2.
 - External MCP configuration is supplied per invocation through
   `OPENCODE_CONFIG_CONTENT`; selected skills still use the shared §4 path.
+- Detected v2 adds `--standalone`. v2 otherwise delegates `opencode run` to a
+  persistent background service that reads its configuration once, so a per-run
+  `OPENCODE_CONFIG_CONTENT` injection (external MCP overlay, BYOK provider
+  overlay) is ignored by a later run. `--standalone` forces each run to boot its
+  own config-reading process so the injected provider/MCP settings reach the run.
+  v1 has no background service and no such flag, and an unknown/missing version
+  keeps the v1 argv.
 
 ### 5.7 GitHub Copilot CLI
 

@@ -223,26 +223,36 @@ async function fetchModels(
   if (!def.listModels) {
     return { models: def.fallbackModels, source: 'fallback' };
   }
-  try {
-    const { stdout } = await execAgentFile(resolvedBin, def.listModels.args, {
-      env,
-      timeout: def.listModels.timeoutMs ?? 5000,
-      // Models lists from popular CLIs (e.g. opencode) easily exceed the
-      // default 1MB buffer once you include every openrouter model. Bump
-      // it so we don't truncate the listing.
-      maxBuffer: 8 * 1024 * 1024,
-    });
-    const parsed = def.listModels.parse(String(stdout));
-    // Empty / null parse result means the CLI didn't actually return a
-    // usable list (e.g. cursor-agent's "No models available"); fall back
-    // to the static hint so the picker isn't stuck on Default-only.
-    if (!parsed || parsed.length === 0) {
-      return { models: def.fallbackModels, source: 'fallback' };
+  const listModels = def.listModels;
+  // Some CLIs renamed the flag that carries model metadata. Try the primary
+  // argv, then any declared fallback argv, before giving up on the live list.
+  const listModelsAttempts = [
+    listModels.args,
+    ...(listModels.fallbackArgs ? [listModels.fallbackArgs] : []),
+  ];
+  for (const args of listModelsAttempts) {
+    try {
+      const { stdout } = await execAgentFile(resolvedBin, args, {
+        env,
+        timeout: listModels.timeoutMs ?? 5000,
+        // Models lists from popular CLIs (e.g. opencode) easily exceed the
+        // default 1MB buffer once you include every openrouter model. Bump
+        // it so we don't truncate the listing.
+        maxBuffer: 8 * 1024 * 1024,
+      });
+      const parsed = listModels.parse(String(stdout));
+      // Empty / null parse result means the CLI didn't actually return a
+      // usable list (e.g. cursor-agent's "No models available"); try the next
+      // argv shape, then fall back to the static hint so the picker isn't
+      // stuck on Default-only.
+      if (parsed && parsed.length > 0) {
+        return { models: mergeFallbackModelMetadata(def, parsed), source: 'live' };
+      }
+    } catch {
+      // Try the next argv shape.
     }
-    return { models: mergeFallbackModelMetadata(def, parsed), source: 'live' };
-  } catch {
-    return { models: def.fallbackModels, source: 'fallback' };
   }
+  return { models: def.fallbackModels, source: 'fallback' };
 }
 
 export type VersionProbeOutcome =

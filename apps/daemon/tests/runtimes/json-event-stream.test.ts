@@ -53,6 +53,90 @@ test('opencode step_start without a session id reports a null sessionId (no spur
   ]);
 });
 
+test('opencode v2 tool_use reads the call id from part.id (verbatim v2.0.23 frame)', () => {
+  const { events, handler } = collectEvents('opencode');
+
+  // Captured from `opencode run --format json` on v2.0.23. v1 stamped the call
+  // as `part.callID`; v2 renamed it to `part.id`, keeping the surrounding
+  // `tool`/`state` shape.
+  handler.feed(
+    JSON.stringify({
+      type: 'tool_use',
+      timestamp: 1791252264028,
+      sessionID: 'ses_ef10b9270ffeoSDUkpB2DgYpTF',
+      part: {
+        partID: 'prt_10ef47450001RWYpQurxeyKnih',
+        sessionID: 'ses_ef10b9270ffeoSDUkpB2DgYpTF',
+        messageID: 'msg_10ef46dbc001G2pxvK41yrWleA',
+        type: 'tool',
+        id: 'call_00_79fy6vddxe61c461x3mohlz5',
+        tool: 'write',
+        state: {
+          status: 'completed',
+          input: { path: 'marker2.txt', content: 'hi' },
+          output: 'Created file successfully: marker2.txt',
+          title: 'write',
+          metadata: {},
+          time: { start: 1791252264016, end: 1791252264028 },
+        },
+      },
+    }) + '\n',
+  );
+
+  assert.deepEqual(events, [
+    {
+      type: 'tool_use',
+      id: 'call_00_79fy6vddxe61c461x3mohlz5',
+      name: 'write',
+      input: { path: 'marker2.txt', content: 'hi' },
+    },
+    {
+      type: 'tool_result',
+      toolUseId: 'call_00_79fy6vddxe61c461x3mohlz5',
+      content: 'Created file successfully: marker2.txt',
+      isError: false,
+    },
+  ]);
+});
+
+test('opencode v2 tool_use surfaces a denied permission as an error result', () => {
+  const { events, handler } = collectEvents('opencode');
+
+  handler.feed(
+    JSON.stringify({
+      type: 'tool_use',
+      sessionID: 'ses_v2',
+      part: {
+        type: 'tool',
+        id: 'call_denied',
+        tool: 'read',
+        state: {
+          status: 'error',
+          input: { path: '/etc/hostname' },
+          error: 'This non-interactive run cannot ask the user for permission, so the request was rejected. Continue without this action.',
+          metadata: {},
+          time: { start: 1, end: 2 },
+        },
+      },
+    }) + '\n',
+  );
+
+  assert.deepEqual(events, [
+    {
+      type: 'tool_use',
+      id: 'call_denied',
+      name: 'read',
+      input: { path: '/etc/hostname' },
+    },
+    {
+      type: 'tool_result',
+      toolUseId: 'call_denied',
+      content: 'This non-interactive run cannot ask the user for permission, so the request was rejected. Continue without this action.',
+      isError: true,
+    },
+  ]);
+});
+
 test('opencode json stream emits tool events', () => {
   const { events, handler } = collectEvents('opencode');
 

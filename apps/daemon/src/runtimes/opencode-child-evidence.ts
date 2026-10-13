@@ -12,6 +12,7 @@ import {
   type SafeChildPromptInput,
 } from '../prompt-telemetry.js';
 import { execAgentFile } from './invocation.js';
+import { isOpenCodeV2 } from './opencode-cli-version.js';
 
 export const OPENCODE_CHILD_EVIDENCE_ADAPTER_VERSION =
   'od-opencode-child-evidence/v1' as const;
@@ -380,20 +381,27 @@ export async function collectOpenCodeChildRuntimeFacts(input: {
  * `invocation.ts`). The env must be the one the Run was spawned with: it
  * carries the `XDG_DATA_HOME` / `HOME` that decide which session store the
  * spawned CLI actually wrote to.
+ *
+ * OpenCode v2 moved the subcommand from `export` to `session export` and
+ * dropped `--pure`; `cliVersion` selects the shape.
  */
 export function createOpenCodeSanitizedExportLoader(input: {
   launchPath: string;
   env: NodeJS.ProcessEnv;
+  cliVersion?: string | null;
   timeoutMs?: number;
   maxBytes?: number;
 }): (childSessionId: string) => Promise<unknown> {
+  const exportArgs = isOpenCodeV2(input.cliVersion)
+    ? (childSessionId: string) => ['session', 'export', childSessionId, '--sanitize']
+    : (childSessionId: string) => ['export', childSessionId, '--sanitize', '--pure'];
   return async (childSessionId: string) => {
     if (!OPENCODE_CHILD_SESSION_ID.test(childSessionId)) {
       throw new TypeError(`Unsupported OpenCode child session id: ${childSessionId}`);
     }
     const { stdout } = await execAgentFile(
       input.launchPath,
-      ['export', childSessionId, '--sanitize', '--pure'],
+      exportArgs(childSessionId),
       {
         env: input.env,
         timeout: input.timeoutMs ?? OPENCODE_CHILD_EXPORT_TIMEOUT_MS,

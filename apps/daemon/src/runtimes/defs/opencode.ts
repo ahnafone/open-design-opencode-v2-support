@@ -4,6 +4,7 @@ import {
   appendOpenCodePermissionBypass,
   appendOpenCodeWorkspaceDir,
 } from '../opencode-permissions.js';
+import { isOpenCodeV2, openCodeModelArg } from '../opencode-cli-version.js';
 import { getRememberedLiveModels } from '../models.js';
 import type { RuntimeAgentDef, RuntimeModelOption } from '../types.js';
 
@@ -120,6 +121,9 @@ export const opencodeAgentDef = {
     // (devin, hermes, kiro, kilo, kimi, trae-cli, vibe, reasonix).
     listModels: {
       args: ['models', '--verbose'],
+      // OpenCode v2 removed `--verbose`; retry with the plain listing, which
+      // yields one `provider/model` per line and no variant metadata.
+      fallbackArgs: ['models'],
       parse: parseOpenCodeModels,
       timeoutMs: 15_000,
     },
@@ -141,8 +145,18 @@ export const opencodeAgentDef = {
         '--format',
         'json',
       ];
+      const cliVersion = runtimeContext.cliVersion ?? null;
+      // v2 runs a shared background service that reads its config once, so a
+      // per-run `OPENCODE_CONFIG_CONTENT` injection (external MCP overlay, BYOK
+      // provider overlay) is ignored by a later `opencode run`. `--standalone`
+      // forces each run to boot its own config-reading process, making the
+      // injected configuration effective. v1 has no background service and no
+      // such flag, and an unprobed/unknown version keeps the v1 argv.
+      if (isOpenCodeV2(cliVersion)) {
+        args.push('--standalone');
+      }
       appendOpenCodePermissionBypass(args, 'opencode');
-      appendOpenCodeWorkspaceDir(args, runtimeContext.cwd);
+      appendOpenCodeWorkspaceDir(args, runtimeContext.cwd, cliVersion);
       // Capture-style resume: OpenCode mints its own session id (reported on
       // the stream as `sessionID`, e.g. `ses_...`). On a follow-up turn the
       // daemon continues that session with `-s <id>` instead of re-sending the
@@ -158,9 +172,11 @@ export const opencodeAgentDef = {
         args.push('-s', resumeSessionId);
       }
       if (options.model && options.model !== 'default') {
-        args.push('-m', options.model);
+        // v2 carries the variant in the model id (`provider/model#variant`);
+        // v1 keeps the separate `--variant` flag below.
+        args.push('-m', openCodeModelArg(cliVersion, options.model, options.reasoning));
       }
-      if (supportsOpenCodeVariant(options.model, options.reasoning)) {
+      if (!isOpenCodeV2(cliVersion) && supportsOpenCodeVariant(options.model, options.reasoning)) {
         args.push('--variant', options.reasoning);
       }
       return args;

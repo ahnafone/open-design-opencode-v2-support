@@ -98,7 +98,11 @@ import {
   BYOK_OPENCODE_PROVIDER_ID,
   buildOpenCodeByokProviderConfig,
 } from './runtimes/byok-opencode.js';
-
+import {
+  ensureDetectedRuntimeCapabilities,
+  ensureDetectedRuntimeVersions,
+} from './runtimes/detection.js';
+import { isOpenCodeV2 } from './runtimes/opencode-cli-version.js';
 export { validateBaseUrl } from '@open-design/contracts/api/connectionTest';
 
 // DNS-aware companion to `validateBaseUrl`. The contracts-side check only
@@ -2580,6 +2584,20 @@ async function testAgentConnectionInternal(
     }
     let args: string[];
     try {
+      // The adapter's argv depends on the installed CLI family (OpenCode v1
+      // still needs `--dir`; v2 renamed or removed several flags). Detection
+      // probes the exact resolved executable, honoring a configured
+      // `OPENCODE_BIN`, and returns the cached result when one exists.
+      const detectedVersions = await ensureDetectedRuntimeVersions(
+        input.agentId,
+        configuredAgentEnv,
+      );
+      const cliVersion = detectedVersions?.agentCliVersion ?? null;
+      // Permission-bypass flags are gated on the resolved executable's `--help`
+      // capability map. Re-probe for THIS binary so an override
+      // (`OPENCODE_BIN`) or a swapped CLI cannot inherit flags detected for a
+      // different install — the same contract the chat spawn path honors.
+      await ensureDetectedRuntimeCapabilities(input.agentId, configuredAgentEnv);
       promptFile = await preparePromptFileForAgent(def, SMOKE_PROMPT, 'connection-test');
       args = def.buildArgs(
         SMOKE_PROMPT,
@@ -2599,6 +2617,7 @@ async function testAgentConnectionInternal(
         },
         {
           cwd: tempDir,
+          cliVersion,
           ...(promptFile ? { promptFilePath: promptFile.path } : {}),
           ...(antigravityLogFilePath
             ? { agentLogFilePath: antigravityLogFilePath }
@@ -2608,8 +2627,13 @@ async function testAgentConnectionInternal(
       // Connection tests should validate the adapter's core CLI path, not
       // fail on unrelated user-installed OpenCode plugins. `opencode run
       // --pure` keeps the smoke test isolated while regular chat runs retain
-      // the user's full plugin environment.
-      if ((input.agentId === 'opencode' || input.agentId === 'mimo') && !args.includes('--pure')) {
+      // the user's full plugin environment. v2 removed `--pure`, so only send
+      // it to the family that accepts it.
+      if (
+        (input.agentId === 'opencode' || input.agentId === 'mimo')
+        && !(input.agentId === 'opencode' && isOpenCodeV2(cliVersion))
+        && !args.includes('--pure')
+      ) {
         args.push('--pure');
       }
       if ((input.agentId === 'opencode' || input.agentId === 'mimo') && !args.includes('--title')) {

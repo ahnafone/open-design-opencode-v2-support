@@ -15,6 +15,7 @@ describe('byok-opencode runtime config', () => {
     expect(byokOpenCodeAgentDef.helpArgs).toEqual(['run', '--help']);
     expect(byokOpenCodeAgentDef.capabilityFlags).toEqual({
       '--dangerously-skip-permissions': 'skipPermissions',
+      '--auto': 'autoApprove',
     });
     expect(byokOpenCodeAgentDef.buildArgs('', [], [], {})).toEqual([
       'run',
@@ -35,6 +36,92 @@ describe('byok-opencode runtime config', () => {
     } finally {
       agentCapabilities.delete('byok-opencode');
     }
+  });
+
+  it('forwards v2 `--auto` and omits `--dir` for the v2 CLI family', () => {
+    agentCapabilities.delete('byok-opencode');
+    agentCapabilities.set('byok-opencode', { autoApprove: true });
+    try {
+      const args = byokOpenCodeAgentDef.buildArgs('', [], [], { model: 'gpt-5.5' }, {
+        cwd: '/tmp/project',
+        cliVersion: 'opencode v2.0.23',
+      });
+      expect(args).toContain('--standalone');
+      expect(args.filter((arg) => arg !== '--standalone')).toEqual([
+        'run',
+        '--format',
+        'json',
+        '--auto',
+        '-m',
+        'open-design-byok/gpt-5.5',
+      ]);
+    } finally {
+      agentCapabilities.delete('byok-opencode');
+    }
+  });
+
+  // OpenCode v2 runs a shared background service that reads its config once, so
+  // the per-run `OPENCODE_CONFIG_CONTENT` carrying the BYOK provider overlay is
+  // ignored by a later `opencode run`. `--standalone` makes each run boot its
+  // own config-reading process so the injected provider is effective. v1 has no
+  // such service and no `--standalone` flag, and an unprobed/unknown version
+  // keeps the v1 argv.
+  it('launches v2 with --standalone so the run-scoped BYOK provider config is honored, and never v1', () => {
+    agentCapabilities.delete('byok-opencode');
+
+    const v2 = byokOpenCodeAgentDef.buildArgs('', [], [], { model: 'gpt-5.5' }, {
+      cwd: '/tmp/project',
+      cliVersion: 'opencode v2.0.23',
+    });
+    expect(v2).toContain('--standalone');
+    expect(v2.filter((arg) => arg !== '--standalone')).toEqual([
+      'run',
+      '--format',
+      'json',
+      '-m',
+      'open-design-byok/gpt-5.5',
+    ]);
+
+    // The default model produces no `-m`, and standalone still rides along.
+    const v2DefaultModel = byokOpenCodeAgentDef.buildArgs('', [], [], { model: 'default' }, {
+      cwd: '/tmp/project',
+      cliVersion: 'opencode v2.0.23',
+    });
+    expect(v2DefaultModel).toContain('--standalone');
+    expect(v2DefaultModel.filter((arg) => arg !== '--standalone')).toEqual([
+      'run',
+      '--format',
+      'json',
+    ]);
+
+    const v1 = byokOpenCodeAgentDef.buildArgs('', [], [], { model: 'gpt-5.5' }, {
+      cwd: '/tmp/project',
+      cliVersion: '1.18.34',
+    });
+    expect(v1).not.toContain('--standalone');
+
+    const unknownVersion = byokOpenCodeAgentDef.buildArgs('', [], [], { model: 'gpt-5.5' }, {
+      cwd: '/tmp/project',
+    });
+    expect(unknownVersion).not.toContain('--standalone');
+  });
+
+  it('keeps v1 `--dir` for the v1 CLI family', () => {
+    agentCapabilities.delete('byok-opencode');
+    const args = byokOpenCodeAgentDef.buildArgs('', [], [], { model: 'gpt-5.5' }, {
+      cwd: '/tmp/project',
+      cliVersion: '1.18.34',
+    });
+    expect(args).not.toContain('--standalone');
+    expect(args).toEqual([
+      'run',
+      '--format',
+      'json',
+      '--dir',
+      '/tmp/project',
+      '-m',
+      'open-design-byok/gpt-5.5',
+    ]);
   });
 
   it.each(['openai', 'anthropic', 'google', 'azure', 'ollama', 'senseaudio', 'aihubmix'] as const)(

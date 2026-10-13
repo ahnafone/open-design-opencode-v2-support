@@ -30,6 +30,12 @@ export type RuntimeBuildOptions = {
 
 export type RuntimeContext = {
   cwd?: string;
+  // The `--version` string detection resolved for this agent's selected
+  // executable, when known. Adapters whose CLI renamed flags between major
+  // lines (OpenCode v1 → v2) read it to build the argv that family accepts.
+  // Absent means "not probed"; consumers must fall back to their long-standing
+  // argv rather than guessing a newer shape.
+  cliVersion?: string | null;
   // True when the current chat run has at least one prior persisted
   // assistant message in the same conversation — i.e. this isn't the
   // first user turn. Plain-streaming adapters that support a "continue
@@ -104,6 +110,10 @@ export type RuntimeCapabilityMap = Record<string, boolean>;
 
 export type RuntimeListModels = {
   args: string[];
+  // Alternate argv tried when `args` yields no usable list (non-zero exit or an
+  // unparseable/empty result). OpenCode v2 rejects the v1 `--verbose` flag, so
+  // the adapter lists with `--verbose` first and falls back to the plain list.
+  fallbackArgs?: string[];
   timeoutMs?: number;
   parse: (stdout: string) => RuntimeModelOption[] | null;
 };

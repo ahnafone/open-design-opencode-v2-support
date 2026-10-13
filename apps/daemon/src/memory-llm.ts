@@ -76,6 +76,7 @@ import {
 } from './agents.js';
 import { agentCliEnvForAgent, readAppConfig } from './app-config.js';
 import { createJsonEventStreamHandler } from './runtimes/json-event-stream.js';
+import { getDetectedRuntimeVersions } from './runtimes/detection.js';
 
 const SYSTEM_PROMPT = `You are a memory extractor for a personal AI design assistant.
 
@@ -1024,7 +1025,7 @@ async function callLocalCli(provider, system, user, options) {
       [],
       [],
       { model: provider.model },
-      { cwd },
+      { cwd, cliVersion: getDetectedRuntimeVersions('opencode')?.agentCliVersion ?? null },
     );
     parseStdout = (raw) => extractJsonEventText(def.eventParser || def.id, raw, def.name);
   } else {

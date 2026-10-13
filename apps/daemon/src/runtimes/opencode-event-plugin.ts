@@ -27,6 +27,14 @@ export const OPEN_CODE_EVENT_PLUGIN_SOURCE = String.raw`export default async fun
 }
 `;
 
+/**
+ * The embedded tool-preview plugin hooks `message.part.updated` and keys the
+ * call on `part.callID`. OpenCode v2 renamed that field to `part.id` (and
+ * changed the surrounding plugin surface), so the plugin is deliberately kept
+ * to the v1 line that this source was verified against. v2 tool calls still
+ * surface through the native `run --format json` stream, which the parser
+ * reads; the plugin only adds an earlier in-flight preview.
+ */
 export function supportsOpenCodeEventPlugin(version: string | undefined): boolean {
   const match = /^1\.(\d+)\.(\d+)$/u.exec(version ?? '');
   return Boolean(match && (Number(match[1]) > 17 || (Number(match[1]) === 17 && Number(match[2]) >= 18)));

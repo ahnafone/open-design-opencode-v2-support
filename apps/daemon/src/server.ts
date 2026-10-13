@@ -13708,6 +13708,16 @@ export async function startServer({
       // to be filled only by `GET /api/agents`. Probe it here so a daemon that
       // has never served that route still builds the same argv as one that has.
       await ensureDetectedRuntimeCapabilities(def.id, configuredAgentEnv);
+      // BYOK OpenCode runs through the same `opencode` binary. Resolve its
+      // version so the argv matches the installed family (v1 needs `--dir`;
+      // v2 renamed/removed several flags).
+      const detectionAgentId = def.id === 'byok-opencode' ? 'opencode' : def.id;
+      const runtimeVersions = await ensureDetectedRuntimeVersions(
+        detectionAgentId,
+        configuredAgentEnv,
+      );
+      const cliVersion =
+        run.preflightAgentCliVersion ?? runtimeVersions?.agentCliVersion ?? null;
       args = def.buildArgs(
         composed,
         promptImagePaths,
@@ -13715,6 +13725,7 @@ export async function startServer({
         agentOptions,
         {
           cwd: effectiveCwd,
+          cliVersion,
           hasPriorAssistantTurn,
           agentLogFilePath,
           promptFilePath: promptFile?.path,
@@ -16221,6 +16232,7 @@ export async function startServer({
               loadSanitizedExport: createOpenCodeSanitizedExportLoader({
                 launchPath,
                 env: spawnedAgentEnv,
+                cliVersion: getDetectedRuntimeVersions('opencode')?.agentCliVersion ?? null,
               }),
             });
             for (const fact of facts) {

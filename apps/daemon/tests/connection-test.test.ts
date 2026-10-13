@@ -3961,6 +3961,86 @@ process.stdin.on('end', () => {
             '--title',
             'Connection test',
           ]);
+          // v1 has no background service and no --standalone flag.
+          expect(argv).not.toContain('--standalone');
+          await expect(fsp.readFile(stdinFile, 'utf8')).resolves.toBe('Reply with only: ok');
+        },
+      );
+    } finally {
+      await fsp.rm(markerDir, { recursive: true, force: true });
+    }
+  });
+
+  it('launches OpenCode v2 connection tests with --standalone and --auto (no --dir)', async () => {
+    const markerDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'od-opencode-v2-argv-'));
+    const argvFile = path.join(markerDir, 'argv.json');
+    const stdinFile = path.join(markerDir, 'stdin.txt');
+    try {
+      await withFakeOpenCode(
+        `
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+if (args[0] === '--version') {
+  console.log('opencode v2.0.23');
+  process.exit(0);
+}
+if (args[0] === 'models') {
+  console.log('opencode-go/glm-5.3');
+  process.exit(0);
+}
+if (args.includes('--help')) {
+  console.log('  --auto  Auto-approve permissions that are not explicitly denied');
+  process.exit(0);
+}
+fs.writeFileSync(${JSON.stringify(argvFile)}, JSON.stringify(args));
+let stdin = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => { stdin += chunk; });
+process.stdin.on('end', () => {
+  fs.writeFileSync(${JSON.stringify(stdinFile)}, stdin);
+  if (args.includes('--dir') || args.includes('--pure')) {
+    console.error('v2 rejected a v1 flag');
+    process.exit(1);
+    return;
+  }
+  console.log(JSON.stringify({ type: 'text', part: { text: 'ok' } }));
+});
+`,
+        async () => {
+          const res = await realFetch(`${baseUrl}/api/test/connection`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              mode: 'agent',
+              agentId: 'opencode',
+              model: 'opencode-go/glm-5.3',
+            }),
+          });
+          expect(res.status).toBe(200);
+          await expect(res.json()).resolves.toMatchObject({
+            ok: true,
+            kind: 'success',
+            agentName: 'OpenCode',
+            model: 'opencode-go/glm-5.3',
+            sample: 'ok',
+          });
+
+          const argv = JSON.parse(await fsp.readFile(argvFile, 'utf8')) as string[];
+          // v2's shared background service ignores the per-run
+          // OPENCODE_CONFIG_CONTENT provider injection, so a v2 run must be
+          // standalone. Position is not part of the contract; everything else
+          // must still match byte-for-byte.
+          expect(argv).toContain('--standalone');
+          expect(argv.filter((arg) => arg !== '--standalone')).toEqual([
+            'run',
+            '--format',
+            'json',
+            '--auto',
+            '-m',
+            'opencode-go/glm-5.3',
+            '--title',
+            'Connection test',
+          ]);
           await expect(fsp.readFile(stdinFile, 'utf8')).resolves.toBe('Reply with only: ok');
         },
       );

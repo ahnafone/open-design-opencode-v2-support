@@ -239,14 +239,122 @@ test('opencode passes --dangerously-skip-permissions when the help probe finds i
 });
 
 test('opencode pins its workspace to the project cwd', () => {
-  // OpenCode resolves its project by walking up to the nearest enclosing git
+  // OpenCode v1 resolves its project by walking up to the nearest enclosing git
   // root, not by using its process cwd. A managed project directory is not a
   // repository, so a development install (daemon data dir under the checkout)
   // made OpenCode adopt the whole Open Design repository as the workspace: it
   // wrote the deliverable at the repository root, the project stayed empty, and
   // the Run reported `no_artifact`.
-  const args = opencode.buildArgs('design a dashboard', [], [], {}, { cwd: '/projects/p1' });
+  const args = opencode.buildArgs(
+    'design a dashboard',
+    [],
+    [],
+    {},
+    { cwd: '/projects/p1', cliVersion: '1.18.34' },
+  );
   assert.deepEqual(args, ['run', '--format', 'json', '--dir', '/projects/p1']);
+});
+
+test('opencode v2 relies on the spawn cwd and passes --auto for permissions', () => {
+  // v2 honors the child process cwd and removed `--dir`; it renamed the
+  // permission bypass to `--auto`, which the `run --help` probe advertises.
+  // v2 also needs `--standalone`; see the dedicated regression test below.
+  agentCapabilities.set('opencode', { autoApprove: true });
+  try {
+    const args = opencode.buildArgs(
+      'design a dashboard',
+      [],
+      [],
+      {},
+      { cwd: '/projects/p1', cliVersion: 'opencode v2.0.23' },
+    );
+    assert.equal(
+      args.includes('--standalone'),
+      true,
+      `v2 argv must include --standalone: ${JSON.stringify(args)}`,
+    );
+    assert.deepEqual(
+      args.filter((arg) => arg !== '--standalone'),
+      ['run', '--format', 'json', '--auto'],
+    );
+  } finally {
+    agentCapabilities.delete('opencode');
+  }
+});
+
+// OpenCode v2 runs its own shared background service. That service reads the
+// config once and reuses it, so a per-run `OPENCODE_CONFIG_CONTENT` injection
+// (the external-MCP overlay, and BYOK's provider overlay) is ignored by a later
+// `opencode run`. `--standalone` forces the run to boot its own config-reading
+// process, which is what makes the injected provider configuration effective.
+// v1 has no background service and no `--standalone` flag, so it must not
+// receive one — nor may an unprobed/unknown version, which keeps the v1 argv.
+test('opencode v2 launches with --standalone so per-run config is honored, v1 does not', () => {
+  agentCapabilities.delete('opencode');
+  const v2Context = { cwd: '/projects/p1', cliVersion: 'opencode v2.0.23' };
+
+  const v2Base = opencode.buildArgs('design a dashboard', [], [], {}, v2Context);
+  assert.equal(
+    v2Base.includes('--standalone'),
+    true,
+    `v2 argv must include --standalone: ${JSON.stringify(v2Base)}`,
+  );
+  assert.deepEqual(
+    v2Base.filter((arg) => arg !== '--standalone'),
+    ['run', '--format', 'json'],
+  );
+
+  const v2WithModel = opencode.buildArgs(
+    'design a dashboard',
+    [],
+    [],
+    { model: 'opencode-go/glm-5.3' },
+    v2Context,
+  );
+  assert.equal(v2WithModel.includes('--standalone'), true);
+  assert.deepEqual(
+    v2WithModel.filter((arg) => arg !== '--standalone'),
+    ['run', '--format', 'json', '-m', 'opencode-go/glm-5.3'],
+  );
+
+  const v2Resume = opencode.buildArgs(
+    'design a dashboard',
+    [],
+    [],
+    {},
+    { ...v2Context, resumeSessionId: 'ses_123' },
+  );
+  assert.equal(v2Resume.includes('--standalone'), true);
+  assert.deepEqual(
+    v2Resume.filter((arg) => arg !== '--standalone'),
+    ['run', '--format', 'json', '-s', 'ses_123'],
+  );
+
+  // v1 keeps the long-standing argv: `--dir` for the workspace, no standalone.
+  const v1 = opencode.buildArgs('design a dashboard', [], [], {}, {
+    cwd: '/projects/p1',
+    cliVersion: '1.18.34',
+  });
+  assert.equal(v1.includes('--standalone'), false);
+  assert.deepEqual(v1, ['run', '--format', 'json', '--dir', '/projects/p1']);
+
+  // Unknown / missing version keeps the v1 argv, so a failed version probe
+  // cannot silently opt an unknown binary into the v2 flag.
+  const unknown = opencode.buildArgs('design a dashboard', [], [], {}, { cwd: '/projects/p1' });
+  assert.equal(unknown.includes('--standalone'), false);
+
+  // The flag coexists with the v2 permission bypass.
+  agentCapabilities.set('opencode', { autoApprove: true });
+  try {
+    const v2Auto = opencode.buildArgs('design a dashboard', [], [], {}, v2Context);
+    assert.equal(v2Auto.includes('--standalone'), true);
+    assert.deepEqual(
+      v2Auto.filter((arg) => arg !== '--standalone'),
+      ['run', '--format', 'json', '--auto'],
+    );
+  } finally {
+    agentCapabilities.delete('opencode');
+  }
 });
 
 test('opencode omits --dir for a run with no project directory', () => {
