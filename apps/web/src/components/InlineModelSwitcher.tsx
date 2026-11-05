@@ -66,6 +66,7 @@ import {
 import type { AgentInfo, ApiProtocol, AppConfig, ExecMode } from '../types';
 import { apiProtocolLabel } from '../utils/apiProtocol';
 import { isVisibleLocalCliAgent } from '../utils/visibleAgents';
+import { BYOK_OPENCODE_AGENT_ID } from '../utils/byokProvider';
 import { AgentIcon } from './AgentIcon';
 import { Icon } from './Icon';
 import { modelProviderIconSrc } from './modelProviderIcon';
@@ -1071,10 +1072,11 @@ export function InlineModelSwitcher({
 
   // Chip text — keep it tight so the pill doesn't wrap on small viewports.
   // CLI: "Claude · Sonnet 4.5"; BYOK: "Anthropic · sonnet-4.5".
-  const chipMode =
-    config.mode === 'daemon'
-      ? t('inlineSwitcher.chipCli')
-      : t('inlineSwitcher.chipByok');
+  const chipUsesByok =
+    config.mode === 'api' || config.agentId === BYOK_OPENCODE_AGENT_ID;
+  const chipMode = chipUsesByok
+    ? t('inlineSwitcher.chipByok')
+    : t('inlineSwitcher.chipCli');
   const chipPrimary =
     config.mode === 'daemon'
       ? currentAgent
@@ -1168,7 +1170,7 @@ export function InlineModelSwitcher({
         // stays, so the icon-only treatment is still announced.
         aria-label={
           compact
-            ? `${chipAgentLabel} · ${chipModel}`
+            ? `${chipMode} · ${chipAgentLabel} · ${chipModel}`
             : `${chipMode} · ${chipPrimary} · ${chipModel}`
         }
       >
@@ -1182,6 +1184,9 @@ export function InlineModelSwitcher({
               data-connected={chipConnected ? 'true' : 'false'}
               aria-hidden="true"
             />
+            <span className="inline-switcher__chip-mode-badge" data-testid="inline-model-switcher-chip-mode">
+              {chipMode}
+            </span>
             {/* The selected MODEL's brand mark — the same artwork its row in
                 the list below carries, so the chip and the row a user just
                 clicked show the same thing. Falls back to the agent logo (and

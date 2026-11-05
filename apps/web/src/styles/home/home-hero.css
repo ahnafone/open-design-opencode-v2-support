@@ -1625,6 +1625,14 @@
   width: 20px;
   height: 20px;
 }
+.home-hero__execution-switcher .inline-switcher__chip-mode-badge {
+  flex: 0 0 auto;
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
 /* Connection-status dot: green = agent reachable, gray = unreachable/failed.
    A same-color halo pulses outward for the "breathing" live indicator. */
 .inline-switcher__chip-conn {

@@ -6,7 +6,7 @@
 // module recovers that signal so the chat UI can show "usage limit reached"
 // instead of a bare timeout. OpenCode-specific by design; see issue #982.
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { closeSync, openSync, readSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { classifyAgentServiceFailure, type AgentServiceFailureCode } from './auth.js';
 
@@ -42,7 +42,8 @@ export function resolveOpenCodeLogDir(
 // run-binding signal available here.) The 2 MB tail comfortably holds the
 // final error frame even though
 // OpenCode embeds the entire request body (system prompt + tool schemas) in
-// each `service=llm` line. Synchronous on purpose: the only callers are the
+// each `service=llm` line. Synchronous bounded reads preserve the existing
+// non-async watchdog/close call sites. The only callers are the
 // (non-async) run close handler and the inactivity watchdog, once per failed
 // OpenCode run. Returns null on any fs error (no dir yet, perms).
 export function readLatestOpenCodeLogTail(
@@ -67,11 +68,25 @@ export function readLatestOpenCodeLogTail(
         continue;
       }
     }
+    let fd: number | null = null;
     try {
-      const buf = readFileSync(full, 'utf8');
-      return buf.length > maxBytes ? buf.slice(-maxBytes) : buf;
+      const size = statSync(full).size;
+      const byteLength = Math.min(size, maxBytes);
+      const buffer = Buffer.allocUnsafe(byteLength);
+      fd = openSync(full, 'r');
+      const bytesRead = readSync(fd, buffer, 0, byteLength, size - byteLength);
+      return buffer.subarray(0, bytesRead).toString('utf8');
     } catch {
       continue;
+    } finally {
+      if (fd !== null) {
+        try {
+          closeSync(fd);
+        } catch {
+          // A close failure must not override a successful bounded read or
+          // escape the best-effort log lookup.
+        }
+      }
     }
   }
   return null;
@@ -124,23 +139,48 @@ function defaultMessageForCode(code: AgentServiceFailureCode): string {
   }
 }
 
-// Classify the latest `service=llm` provider error in an OpenCode log tail.
+// Classify the latest provider failure in an OpenCode log tail.
 // We scope to that single line so the huge request body of *other* lines
 // can't leak in, key the classification on the unambiguous HTTP `statusCode`
 // first, and fall back to keyword matching the extracted message only.
 export function extractOpenCodeServiceFailure(
   logTail: string,
 ): OpenCodeServiceFailure | null {
+  return extractOpenCodeFailure(logTail);
+}
+
+export function extractOpenCodeServiceFailureForSession(
+  logTail: string,
+  sessionId: string,
+): OpenCodeServiceFailure | null {
+  if (!sessionId.trim()) return null;
+  const sessionToken = new RegExp(`(?:^|\\s)session\\.id=${sessionId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`);
+  return extractOpenCodeFailure(logTail, sessionToken);
+}
+
+function extractOpenCodeFailure(
+  logTail: string,
+  sessionToken?: RegExp,
+): OpenCodeServiceFailure | null {
   if (!logTail || !logTail.trim()) return null;
   const lines = logTail.split(/\r?\n/);
   let line: string | null = null;
   for (let i = lines.length - 1; i >= 0; i -= 1) {
     const candidate = lines[i]!;
-    if (
-      candidate.includes('service=llm') &&
-      /\bERROR\b/.test(candidate) &&
-      candidate.includes('error=')
-    ) {
+    if (sessionToken) {
+      const quoteIndex = candidate.indexOf('"');
+      const singleQuoteIndex = candidate.indexOf("'");
+      const errorIndex = candidate.indexOf('error=');
+      const prefixEnd = [quoteIndex, singleQuoteIndex, errorIndex].filter((index) => index >= 0).reduce(
+        (earliest, index) => Math.min(earliest, index),
+        candidate.length,
+      );
+      if (!sessionToken.test(candidate.slice(0, prefixEnd))) continue;
+    }
+    const serviceError = candidate.includes('service=llm') && /\bERROR\b/.test(candidate) && candidate.includes('error=');
+    const modelUnavailable = /SessionRunnerModel\.ModelUnavailableError:\s*Model unavailable:\s*[^\s/]+\/[^\s]+/i.test(candidate);
+    const drainFailure = /\bFailed to drain Session\b/.test(candidate) && /\blevel=ERROR\b/.test(candidate);
+    if (serviceError || modelUnavailable || drainFailure) {
       line = candidate;
       break;
     }
@@ -149,10 +189,20 @@ export function extractOpenCodeServiceFailure(
 
   const statusMatch = /"statusCode":\s*(\d{3})/.exec(line);
   const statusCode = statusMatch ? Number(statusMatch[1]) : null;
-  const message = pickServiceErrorMessage(line);
+  const modelUnavailable = /SessionRunnerModel\.ModelUnavailableError:\s*(Model unavailable:\s*[^\s]+(?:\s+[^\s]+)?)/i.exec(line);
+  const drainCause = /\bFailed to drain Session\b/.test(line)
+    ? /\bcause=(?:"((?:[^"\\]|\\.)*)"|'([^']*)'|([^,}]+))/.exec(line)
+    : null;
+  const extractedModelMessage = modelUnavailable?.[1]?.replace(/[\\"'\s]+$/, '') ?? null;
+  const rawCause = drainCause?.[1] ?? drainCause?.[2] ?? drainCause?.[3];
+  const message = pickServiceErrorMessage(line) ?? extractedModelMessage ??
+    (rawCause && SERVICE_ERROR_MESSAGE_RE.test(rawCause) ? rawCause.trim() : null);
 
   let code: AgentServiceFailureCode | null =
     statusCode != null ? codeFromStatus(statusCode) : null;
+  if (!code && /SessionRunnerModel\.ModelUnavailableError/i.test(line)) {
+    code = 'UPSTREAM_UNAVAILABLE';
+  }
   if (!code && message) code = classifyAgentServiceFailure(message);
   if (!code) return null;
   const retryable = code === 'UPSTREAM_UNAVAILABLE' || (
@@ -167,11 +217,13 @@ export function extractOpenCodeServiceFailure(
 // the current run via `since`), and classify it.
 export function readOpenCodeServiceFailure(
   env: Record<string, string | undefined>,
-  options: { since?: number } = {},
+  options: { since?: number; sessionId?: string; maxBytes?: number } = {},
 ): OpenCodeServiceFailure | null {
   const logDir = resolveOpenCodeLogDir(env);
   if (!logDir) return null;
   const tail = readLatestOpenCodeLogTail(logDir, options);
   if (!tail) return null;
-  return extractOpenCodeServiceFailure(tail);
+  return options.sessionId
+    ? extractOpenCodeServiceFailureForSession(tail, options.sessionId)
+    : extractOpenCodeServiceFailure(tail);
 }

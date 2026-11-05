@@ -12946,12 +12946,20 @@ export async function startServer({
       const finished = finishRun(status, code, signal);
       return finished;
     };
+    let openCodeLogPollTimer: ReturnType<typeof setInterval> | null = null;
+    const clearOpenCodeLogPoll = () => {
+      if (openCodeLogPollTimer) {
+        clearInterval(openCodeLogPollTimer);
+        openCodeLogPollTimer = null;
+      }
+    };
     const finishWithRetryDecision = (
       status,
       code = null,
       signal = null,
       { allowRetry = true } = {},
     ) => {
+      clearOpenCodeLogPoll();
       lifecycle.mark('finalize_start');
       // The Run records how the process ended; the strategy task records its
       // own verdict. A task blocked at any stage keeps a cleanly exited Run
@@ -14010,6 +14018,7 @@ export async function startServer({
     };
     const failForInactivity = (reason: 'inactivity' | 'first_output' = 'inactivity') => {
       if (run.cancelRequested || design.runs.isTerminal(run.status)) return;
+      clearOpenCodeLogPoll();
       clearInactivityWatchdog();
       clearFirstOutputWatchdog();
       if (artifactRegistered) {
@@ -14101,6 +14110,36 @@ export async function startServer({
         scheduleForcedChildShutdown();
       }
     };
+    if (agentId === 'opencode') {
+      openCodeLogPollTimer = setInterval(() => {
+        if (run.cancelRequested || design.runs.isTerminal(run.status)) {
+          clearOpenCodeLogPoll();
+          return;
+        }
+        if (!capturedSessionId) return;
+        const failure = readOpenCodeServiceFailure(spawnedAgentEnv, {
+          since: run.createdAt,
+          sessionId: capturedSessionId,
+          maxBytes: 512 * 1024,
+        });
+        if (!failure) return;
+        clearOpenCodeLogPoll();
+        clearInactivityWatchdog();
+        clearFirstOutputWatchdog();
+        send('error', createSseErrorPayload(
+          failure.code,
+          failure.message,
+          { retryable: failure.retryable },
+        ));
+        finishWithRetryDecision('failed', 1, null);
+        if (acpSession?.abort) acpSession.abort();
+        else {
+          if (child && !child.killed) design.runs.signalChild(run, 'SIGTERM');
+          scheduleForcedChildShutdown();
+        }
+      }, 15_000);
+      openCodeLogPollTimer.unref?.();
+    }
     const armFirstOutputWatchdog = () => {
       if (firstOutputSeen || firstOutputTimer || firstOutputTimeoutMs <= 0) return;
       firstOutputTimer = setTimeout(

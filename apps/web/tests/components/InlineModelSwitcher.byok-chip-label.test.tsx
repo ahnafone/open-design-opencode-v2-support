@@ -87,6 +87,8 @@ describe('BYOK 紧凑 chip 的读屏标签', () => {
   it('API 模式下标签仍要说清是哪条通路 —— 不能修成只剩模型名', () => {
     const chip = show(configOf({ mode: 'api' }));
     const label = chip.getAttribute('aria-label') ?? '';
+    expect(screen.getByTestId('inline-model-switcher-chip-mode').textContent).toBe('BYOK');
+    expect(label).toContain('BYOK');
     expect(label).toContain('google/gemini-2.5-flash');
     // 模型名之外还得有个来源词,否则读屏只念一串模型 id
     expect(label.replace('google/gemini-2.5-flash', '').trim().length).toBeGreaterThan(0);
@@ -94,6 +96,14 @@ describe('BYOK 紧凑 chip 的读屏标签', () => {
 
   it('daemon 模式照旧念 agent 名 —— 否则上面两条就是把标签删了', () => {
     const chip = show(configOf({ mode: 'daemon' }));
+    expect(screen.getByTestId('inline-model-switcher-chip-mode').textContent).toBe('Local CLI');
     expect(chip.getAttribute('aria-label') ?? '').toContain('Claude Code');
+  });
+
+  it('daemon BYOK overlay labels the visible indicator and accessible name as BYOK', () => {
+    const chip = show(configOf({ mode: 'daemon', agentId: 'byok-opencode' }));
+    expect(screen.getByTestId('inline-model-switcher-chip-mode').textContent).toBe('BYOK');
+    expect(chip.getAttribute('aria-label') ?? '').toContain('BYOK');
+    expect(chip.getAttribute('aria-label') ?? '').not.toContain('Claude Code');
   });
 });

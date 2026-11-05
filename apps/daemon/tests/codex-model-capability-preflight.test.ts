@@ -65,7 +65,7 @@ describe('Codex configured-model capability preflight', () => {
     restoreEnv(originalEnv);
   });
 
-  it('blocks an unsupported configured default model before spawning Codex exec', async () => {
+  it('finalizes an unsupported configured default model before spawning Codex exec', async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), 'od-codex-model-preflight-'));
     const codexHome = path.join(tempDir, 'codex-home');
     const spawnMarker = path.join(tempDir, 'codex-exec-spawned');

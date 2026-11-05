@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   extractOpenCodeServiceFailure,
+  extractOpenCodeServiceFailureForSession,
   readLatestOpenCodeLogTail,
   readOpenCodeServiceFailure,
   resolveOpenCodeLogDir,
@@ -52,6 +53,36 @@ describe('extractOpenCodeServiceFailure', () => {
       'ERROR 2026-05-29T10:00:00 +5ms service=llm providerID=opencode-go ' +
       'error={"error":{"name":"AI_APICallError","statusCode":503,"message":"Service temporarily unavailable"}}';
     expect(extractOpenCodeServiceFailure(line)!.code).toBe('UPSTREAM_UNAVAILABLE');
+  });
+
+  it('classifies OpenCode model-unavailable and drain-cause errors without service=llm', () => {
+    const modelUnavailable = 'ERROR 2026-05-29T10:00:00 SessionRunnerModel.ModelUnavailableError: Model unavailable: openai/gpt-5';
+    expect(extractOpenCodeServiceFailure(modelUnavailable)).toMatchObject({ code: 'UPSTREAM_UNAVAILABLE' });
+    expect(extractOpenCodeServiceFailureForSession(modelUnavailable, 'ses_TARGET')).toBeNull();
+    expect(extractOpenCodeServiceFailure(
+      'level=ERROR msg="Failed to drain Session" cause="Provider unavailable"',
+    )).toMatchObject({ code: 'UPSTREAM_UNAVAILABLE' });
+  });
+
+  it('requires the target session for strict log classification', () => {
+    const foreign = 'timestamp=X level=ERROR run=deadbeef message="cli process failed" cause="AI_APICallError: 429 rate limit exceeded for this account" role=cli';
+    expect(extractOpenCodeServiceFailureForSession(foreign, 'ses_TARGET')).toBeNull();
+    const singleQuotedTarget = "level=ERROR session.id=ses_FOREIGN msg='Failed to drain Session' cause='Provider unavailable session.id=ses_TARGET'";
+    expect(extractOpenCodeServiceFailureForSession(singleQuotedTarget, 'ses_TARGET')).toBeNull();
+    const prefixedTarget = 'ERROR service=llm other.session.id=ses_TARGET error={"statusCode":429,"message":"rate limit exceeded"}';
+    expect(extractOpenCodeServiceFailureForSession(prefixedTarget, 'ses_TARGET')).toBeNull();
+    const quotedTarget = 'ERROR service=llm session.id=ses_FOREIGN error={"cause":"session.id=ses_TARGET","statusCode":429,"message":"rate limit exceeded"}';
+    expect(extractOpenCodeServiceFailureForSession(quotedTarget, 'ses_TARGET')).toBeNull();
+    const targeted = 'ERROR 2026-05-29T10:00:00 +5ms service=llm session.id=ses_TARGET error={"statusCode":429,"message":"rate limit exceeded"}';
+    expect(extractOpenCodeServiceFailureForSession(targeted, 'ses_TARGET')?.code).toBe('RATE_LIMITED');
+    expect(extractOpenCodeServiceFailureForSession(targeted, 'ses_OTHER')).toBeNull();
+  });
+
+  it('trims an escaped trailing quote from a model-unavailable reason', () => {
+    const failure = extractOpenCodeServiceFailure(
+      'ERROR SessionRunnerModel.ModelUnavailableError: Model unavailable: some/other-model\\"',
+    );
+    expect(failure?.message).toBe('Model unavailable: some/other-model');
   });
 
   it('falls back to message keywords when no statusCode is present', () => {
