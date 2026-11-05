@@ -14979,7 +14979,11 @@ export async function startServer({
           failure.message,
           { retryable: failure.retryable },
         ));
-        finishWithRetryDecision('failed', 1, null);
+        // Same hand-off as failForInactivity: when the shared finalizer
+        // restarts the run, the SIGTERMed child's close handler must not
+        // finalize the new attempt a second time.
+        const retried = finishWithRetryDecision('failed', 1, null);
+        if (retried) watchdogRetryRestarted = true;
         if (acpSession?.abort) acpSession.abort();
         else {
           if (child && !child.killed) design.runs.signalChild(run, 'SIGTERM');
