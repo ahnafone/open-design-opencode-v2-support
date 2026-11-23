@@ -1,4 +1,5 @@
 import { classifyProcessExit } from "@open-design/contracts/analytics";
+import { attachDisplayRefresh } from "./display-refresh.js";
 import { reportDesktopObservabilityEvent } from "./observability.js";
 import { execFile } from "node:child_process";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
@@ -8,7 +9,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { BrowserWindow, app, dialog, ipcMain, nativeImage, nativeTheme, screen, session, shell, webFrameMain } from "electron";
+import { BrowserWindow, app, dialog, ipcMain, nativeImage, nativeTheme, powerMonitor, screen, session, shell, webFrameMain } from "electron";
 import type { WebFrameMain } from "electron";
 import {
   DESKTOP_UPDATE_CHANNELS,
@@ -2016,6 +2017,7 @@ async function showDirectoryPickerForSender(
 export async function createDesktopRuntime(options: DesktopRuntimeOptions): Promise<DesktopRuntime> {
   const preloadPath = options.preloadPath ?? join(dirname(fileURLToPath(import.meta.url)), "preload.cjs");
   applyDockIcon();
+  const inputTelemetryEnabled = process.env.OD_INPUT_TRIAL_CAPABILITY === '1';
 
   // ipcMain.handle() registers a handler in an internal map that is *not*
   // surfaced via eventNames(); the previous `!eventNames().includes(...)`
@@ -2260,7 +2262,7 @@ export async function createDesktopRuntime(options: DesktopRuntimeOptions): Prom
     autoHideMenuBar: true,
     ...MAC_WINDOW_CHROME,
     webPreferences: {
-      additionalArguments: osLocaleAdditionalArguments(options.osLocale),
+      additionalArguments: [...(osLocaleAdditionalArguments(options.osLocale) ?? []), ...(inputTelemetryEnabled ? ['--od-input-telemetry'] : [])],
       backgroundThrottling: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -2270,6 +2272,30 @@ export async function createDesktopRuntime(options: DesktopRuntimeOptions): Prom
     },
     width: 1280,
   });
+  const disposeDisplayRefresh = attachDisplayRefresh({
+    platform: process.platform,
+    screen,
+    powerMonitor,
+    getWindows: () => [window],
+    readRendererScale: async () => {
+      const ratio: unknown = await window.webContents.executeJavaScript("window.devicePixelRatio");
+      return Number(ratio) / window.webContents.getZoomFactor();
+    },
+    notify: (_window, refresh) => {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send("od:appearance:display-refreshed", {
+          ...refresh,
+          zoomFactor: window.webContents.getZoomFactor(),
+        });
+      }
+    },
+  });
+  const stopDisplayRefresh = () => {
+    disposeDisplayRefresh();
+    app.removeListener("before-quit", stopDisplayRefresh);
+  };
+  app.once("before-quit", stopDisplayRefresh);
+  window.once("closed", stopDisplayRefresh);
   installWindowChromeCssHook(window);
   showWindowButtons(window);
   attachDownloadSaveAsDialog(window);
@@ -3044,12 +3070,23 @@ export async function createDesktopRuntime(options: DesktopRuntimeOptions): Prom
       );
     },
     async close() {
+      stopDisplayRefresh();
       stopped = true;
       if (timer != null) {
         clearTimeout(timer);
         timer = null;
       }
       unsubscribeUpdater();
+      if (inputTelemetryEnabled && !window.isDestroyed()) await new Promise<void>(resolve => {
+        const nonce = randomUUID();
+        const finish = () => { clearTimeout(timeout); ipcMain.removeListener('od:input-telemetry:flushed', acknowledge); resolve(); };
+        const acknowledge = (event: Electron.IpcMainEvent, value: unknown) => {
+          if (value === nonce && event.sender === window.webContents && event.senderFrame === event.sender.mainFrame) finish();
+        };
+        const timeout = setTimeout(finish, 2000);
+        ipcMain.on('od:input-telemetry:flushed', acknowledge);
+        window.webContents.send('od:input-telemetry:flush', nonce);
+      });
       ipcMain.removeAllListeners("desktop-pet:set-visible");
       ipcMain.removeAllListeners("od:appearance:set-theme");
       ipcMain.removeAllListeners("od:window:show");

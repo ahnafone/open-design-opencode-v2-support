@@ -413,6 +413,14 @@ async function renderFeishuBuildCard(env: Record<string, string>): Promise<Recor
 }
 
 describe("packaged smoke workflow", () => {
+  it("[P1] uses a supported Apple Silicon runner for release and prerelease smoke", async () => {
+    for (const path of [releaseBetaWorkflowPath, releasePrereleaseWorkflowPath, releasePrereleaseSmokeWorkflowPath, releaseStableWorkflowPath]) {
+      const workflow = await readFile(path, "utf8");
+      expect(workflow, path).not.toMatch(/^\s*runs-on:\s*macos-14\s*$/m);
+      expect(workflow, path).toMatch(/^\s*runs-on:\s*macos-15\s*$/m);
+    }
+  });
+
   it("[P2] keeps packaged smoke outside the main CI gate", async () => {
     const workflow = await readFile(ciWorkflowPath, "utf8");
     expect(workflow).not.toContain("packaged_smoke_");
@@ -1033,6 +1041,7 @@ else { process.stderr.write("unexpected gh call: " + args + "\\n"); process.exit
     // cut-release owns); independently-versioned packages are skipped via npm pkg set version.
     expect(workflow).toContain("sort -V");
     expect(workflow).toContain("npm pkg set version");
+    expect(workflow).toContain('[ "$v" = "$current" ] || [ "$f" = "apps/packaged/package.json" ]');
     expect(workflow).toContain("changed=true");
 
     // Approval exemption is only used by trusted version-tree validation, never a direct merge.
