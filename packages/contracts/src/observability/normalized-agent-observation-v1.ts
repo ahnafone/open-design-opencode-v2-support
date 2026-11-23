@@ -143,7 +143,7 @@ export const PromptBoundaryEvidenceV1Schema = z.object({
   source: ObservationEvidenceSourceV1Schema.optional(),
   hash: nonEmptyStringSchema.optional(),
   bytes: nonNegativeIntegerSchema.optional(),
-  safePayload: z.record(z.unknown()).optional(),
+  safePayload: z.record(z.string(), z.unknown()).optional(),
   limitations: limitationListSchema,
 }).passthrough().superRefine((evidence, context) => {
   if (evidence.availability === 'exact') {
@@ -274,6 +274,7 @@ export const ObservationUsageValuesV1Schema = z.object({
 export type ObservationUsageValuesV1 = z.infer<typeof ObservationUsageValuesV1Schema>;
 
 export const ObservationUsageValueSourcesV1Schema = z.record(
+  z.string(),
   ObservationUsageSourceV1Schema,
 );
 export type ObservationUsageValueSourcesV1 = z.infer<
@@ -416,7 +417,7 @@ export const TimingEvidenceV1Schema = z.object({
   startedAtMs: nonNegativeNumberSchema.optional(),
   endedAtMs: nonNegativeNumberSchema.optional(),
   durationMs: nonNegativeNumberSchema.optional(),
-  measurements: z.record(nonNegativeNumberSchema).optional(),
+  measurements: z.record(z.string(), nonNegativeNumberSchema).optional(),
   limitations: limitationListSchema.optional(),
 }).passthrough().superRefine((evidence, context) => {
   if (
@@ -768,7 +769,7 @@ export const NormalizedAgentObservationV1Schema = z.object({
   turnAccounting: ObservationTurnAccountingV1Schema.optional(),
   quality: SafeRunQualityV1Schema.optional(),
   limitations: limitationListSchema,
-  attributes: z.record(z.unknown()).optional(),
+  attributes: z.record(z.string(), z.unknown()).optional(),
 }).passthrough().superRefine((observation, context) => {
   if (observation.childEvidenceCoverage && observation.kind !== 'task_run') {
     context.addIssue({

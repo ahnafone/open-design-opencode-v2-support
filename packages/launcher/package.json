@@ -25,10 +25,10 @@
   },
   "devDependencies": {
     "@types/node": "24.12.2",
-    "esbuild": "0.28.0",
+    "esbuild": "0.28.2",
     "typescript": "6.0.3",
-    "vitest": "4.1.6",
-    "tsx": "4.22.3"
+    "vitest": "4.1.12",
+    "tsx": "4.23.15"
   },
   "engines": {
     "node": "~24"

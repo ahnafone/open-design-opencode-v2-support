@@ -147,7 +147,7 @@ describe("touchpoint component v2 controlled mirror", () => {
 					runtimeApiVersion: 2,
 				},
 			}),
-		).toThrow(/Invalid literal value/i);
+		).toThrow(/Invalid (literal value|input)/i);
 	});
 });
 

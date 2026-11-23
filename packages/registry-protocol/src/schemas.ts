@@ -67,7 +67,7 @@ export const RegistryEntrySchema = z.object({
   capabilitiesSummary: z.array(z.string()).optional(),
   dist: RegistryDistSchema.optional(),
   versions: z.array(RegistryVersionSchema).optional(),
-  distTags: z.record(z.string()).optional(),
+  distTags: z.record(z.string(), z.string()).optional(),
   integrity: z.string().min(1).optional(),
   manifestDigest: z.string().min(1).optional(),
   publisher: RegistryPublisherSchema.optional(),
