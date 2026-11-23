@@ -57,8 +57,8 @@ const launchDurations = {
   launch_to_window_shown: measurement.optional(),
   launch_to_first_visible: measurement.optional(),
   launch_to_interactive: measurement.optional(),
-  stage_offsets_ms: z.record(measurement).optional(),
-  stage_durations_ms: z.record(measurement).optional(),
+  stage_offsets_ms: z.record(z.string(), measurement).optional(),
+  stage_durations_ms: z.record(z.string(), measurement).optional(),
 };
 const businessReadySchema = launchAttemptSchema.extend({ duration_ms: measurement, ...launchDurations });
 const launchResultSchema = launchAttemptSchema.extend({

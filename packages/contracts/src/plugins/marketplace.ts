@@ -38,7 +38,7 @@ export const MarketplacePluginEntrySchema = z.object({
   ref:         z.string().optional(),
   dist:        MarketplaceEntryDistSchema.optional(),
   versions:    z.array(MarketplacePluginVersionSchema).optional(),
-  distTags:    z.record(z.string()).optional(),
+  distTags:    z.record(z.string(), z.string()).optional(),
   integrity:   z.string().optional(),
   manifestDigest: z.string().optional(),
   publisher: z.object({
