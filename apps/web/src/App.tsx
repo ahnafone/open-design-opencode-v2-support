@@ -81,6 +81,7 @@ import { TooltipLayer } from './components/TooltipLayer';
 import { UpdateDialog } from './components/UpdateDialog';
 import { UpdaterPopup } from './components/UpdaterPopup';
 import {
+  clearSavedWorkspaceTabs,
   openWorkspaceTab,
   removeWorkspaceProjectTabs,
   WorkspaceTabsBar,
@@ -354,6 +355,7 @@ interface PendingProjectCreation {
   files: readonly File[];
 }
 
+const PREPARE_AMR_PROFILE_SWITCH_EVENT = 'open-design:prepare-amr-profile-switch';
 const APP_CONFIG_CHANGED_EVENT = 'open-design:app-config-changed';
 const AMR_AGENT_ID = 'amr';
 const AMR_PROFILE_ENV_KEY = 'OPEN_DESIGN_AMR_PROFILE';
@@ -481,13 +483,19 @@ function clearStaleAmrModelChoiceOnProfileChange(
  * the user to choose an execution path again.
  */
 export function resetExecutionConfigAfterSignOut(config: AppConfig): AppConfig {
+  const selectedAmrProfile = config.agentCliEnv?.[AMR_AGENT_ID]?.[AMR_PROFILE_ENV_KEY];
   return {
     ...config,
     onboardingCompleted: false,
     mode: DEFAULT_CONFIG.mode,
     agentId: null,
     agentModels: {},
-    agentCliEnv: {},
+    // The selected backend is an app preference, while the other CLI env
+    // entries can contain account credentials. Keep the backend when signing
+    // out so the next account login starts in the same environment.
+    agentCliEnv: typeof selectedAmrProfile === 'string' && selectedAmrProfile.trim()
+      ? { [AMR_AGENT_ID]: { [AMR_PROFILE_ENV_KEY]: selectedAmrProfile } }
+      : {},
     agentCliEnvIntent: {},
   };
 }
@@ -1574,6 +1582,7 @@ function AppInner() {
   // can't overwrite the saved state with `''` before hydration lands.
   const [composioConfigLoading, setComposioConfigLoading] = useState(true);
   const route = useRoute();
+  const [workspaceTabsReset, setWorkspaceTabsReset] = useState(0);
   useLayoutEffect(() => {
     navigationTiming.observeRoute(route);
   }, [route]);
@@ -3309,6 +3318,10 @@ function AppInner() {
 
   const refreshAgents = useCallback(
     async (options?: { throwOnError?: boolean; agentCliEnv?: AppConfig['agentCliEnv'] }) => {
+      // A native menu selection returns focus to the renderer while this
+      // explicit refresh is running. Count it toward the focus throttle so
+      // the same transition does not start a second agent scan.
+      agentFocusRefreshLastRunRef.current = Date.now();
       if (options && Object.prototype.hasOwnProperty.call(options, 'agentCliEnv')) {
         const current = latestPersistedConfigRef.current;
         const nextConfig = clearStaleAmrModelChoiceOnProfileChange(current, {
@@ -3393,6 +3406,29 @@ function AppInner() {
   }, [agentsLoading, daemonLive, refreshAgents]);
 
   useEffect(() => {
+    const prepareProfileSwitch = (event: Event) => {
+      const complete = (event as CustomEvent<unknown>).detail;
+      if (typeof complete !== 'function') return;
+      event.preventDefault();
+      const currentRoute = routeRef.current;
+      if (currentRoute.kind === 'home' && (
+        currentRoute.view === 'home' || currentRoute.view === 'onboarding'
+      )) {
+        complete(true);
+        return;
+      }
+      // Settle edits while the daemon is still using the outgoing environment.
+      navigate({ kind: 'home', view: 'home' }, {
+        replace: true,
+        onCommit: () => complete(true),
+        onCancel: (reason) => complete(reason === 'same_route'),
+      });
+    };
+    window.addEventListener(PREPARE_AMR_PROFILE_SWITCH_EVENT, prepareProfileSwitch);
+    return () => window.removeEventListener(PREPARE_AMR_PROFILE_SWITCH_EVENT, prepareProfileSwitch);
+  }, []);
+
+  useEffect(() => {
     const handleAppConfigChanged = () => {
       void fetchDaemonConfig().then((daemonConfig) => {
         const previous = latestPersistedConfigRef.current;
@@ -3409,7 +3445,23 @@ function AppInner() {
         // context, directory and every account-scoped cache before refreshing
         // the new profile; otherwise prod workspace links remain mounted while
         // status/models/billing already point at feature-test.
-        if (amrProfileChanged) notifyWorkspaceContextRefresh();
+        if (amrProfileChanged) {
+          settingsReturnTargetRef.current = null;
+          clearAmrAuthRetryContinuation();
+          const resetTabs = () => {
+            clearSavedWorkspaceTabs();
+            setWorkspaceTabsReset((current) => current + 1);
+          };
+          const currentRoute = routeRef.current;
+          if (currentRoute.kind === 'home' && (
+            currentRoute.view === 'home' || currentRoute.view === 'onboarding'
+          )) {
+            resetTabs();
+          } else {
+            navigate({ kind: 'home', view: 'home' }, { replace: true, onCommit: resetTabs });
+          }
+          notifyWorkspaceContextRefresh();
+        }
         amrModelsRef.current = null;
         restartAmrPolling();
         void refreshAgents();
@@ -3417,7 +3469,7 @@ function AppInner() {
     };
     window.addEventListener(APP_CONFIG_CHANGED_EVENT, handleAppConfigChanged);
     return () => window.removeEventListener(APP_CONFIG_CHANGED_EVENT, handleAppConfigChanged);
-  }, [refreshAgents, restartAmrPolling]);
+  }, [clearAmrAuthRetryContinuation, refreshAgents, restartAmrPolling]);
 
   /**
    * Undo an optimistic hand-off that will not become a project: drop the
@@ -6211,6 +6263,7 @@ function AppInner() {
         data-host-platform={hostPlatform}
       >
         <WorkspaceTabsBar
+          key={workspaceTabsReset}
           route={route}
           // The ambient list may still be loading (or belong to a different
           // selected Workspace) while a deep-linked project is already open.
